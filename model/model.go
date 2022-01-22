@@ -21,7 +21,7 @@ const (
 
 // 生成每天的模拟数据
 func EcoModelSimulate(config *EconomicsConfig) []plotter.XYs {
-	state := NewMemoState(new(big.Int).Set(config.InitialSupply), new(big.Int).Set(config.InitialTarget))
+	state := NewMemoState(config)
 	state.Ratio.Set(config.MintLevel[0].Ratio)
 
 	// 计算这么多天的增发
@@ -36,7 +36,7 @@ func EcoModelSimulate(config *EconomicsConfig) []plotter.XYs {
 
 	// 设置第一天的数据
 	// 假设初始有7个Keeper，计入质押，退出流动
-	initialKeeperPledge := new(big.Int).Mul(big.NewInt(7), config.KeeperPledge)
+	initialKeeperPledge := new(big.Int).Mul(big.NewInt(7), state.KeeperPledge)
 	state.TotalPledge.Add(
 		state.TotalPledge,
 		initialKeeperPledge,
@@ -45,7 +45,7 @@ func EcoModelSimulate(config *EconomicsConfig) []plotter.XYs {
 	state.TotalLiquid.Sub(state.TotalLiquid, initialKeeperPledge)
 
 	// 假设初始有500个Provider，计入质押，退出流动
-	initialProviderPledge := new(big.Int).Mul(big.NewInt(500), config.ProviderPledge)
+	initialProviderPledge := new(big.Int).Mul(big.NewInt(500), state.ProviderPledge)
 	state.TotalPledge.Add(
 		state.TotalPledge,
 		initialProviderPledge,
@@ -279,9 +279,9 @@ func EcoModelSimulate(config *EconomicsConfig) []plotter.XYs {
 		// 模拟下一次订单变化
 
 		// 新增Provider数
-		order.NewProvider = config.ProviderSimulate(state, reward, int64(i), config, order)
+		order.NewProvider, state.ProviderPledge = config.ProviderSimulate(state, reward, int64(i), config, order)
 
-		providerPledge := new(big.Int).Mul(big.NewInt(order.NewProvider), config.ProviderPledge)
+		providerPledge := new(big.Int).Mul(big.NewInt(order.NewProvider), state.ProviderPledge)
 		state.TotalPledge.Add(
 			state.TotalPledge,
 			providerPledge,

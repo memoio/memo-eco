@@ -31,6 +31,8 @@ type MemoState struct {
 	PeriodReward    *big.Int // 当前阶段的增发总和，增发完则跳到下一个阶段减半
 	HalfFactor      int64    // 当前增发率除一个2^f
 
+	KeeperPledge     *big.Int           // Keeper需要质押的代币数
+	ProviderPledge   *big.Int           // Provider需要质押的代币数
 	KeeperCount      int64              // 系统中Keeper的数量
 	ProviderCount    int64              // 系统中Provider的数量
 	LastMint         int64              // 上一次Mint的时间，单位Day
@@ -38,12 +40,12 @@ type MemoState struct {
 	SubSizeMap       map[int64]*big.Int // 记录过期空间，key为天数
 }
 
-func NewMemoState(initialSupply *big.Int, targetNumber *big.Int) *MemoState {
+func NewMemoState(config *EconomicsConfig) *MemoState {
 	return &MemoState{
 		MintLevel:       0,
 		Ratio:           big.NewInt(0),
-		TotalSupply:     new(big.Int).Set(initialSupply),
-		TotalLiquid:     new(big.Int).Set(initialSupply),
+		TotalSupply:     new(big.Int).Set(config.InitialSupply),
+		TotalLiquid:     new(big.Int).Set(config.InitialSupply),
 		TotalReward:     big.NewInt(0),
 		TotalPledge:     big.NewInt(0),
 		TotalSize:       big.NewInt(0),
@@ -51,10 +53,14 @@ func NewMemoState(initialSupply *big.Int, targetNumber *big.Int) *MemoState {
 		TotalSpaceTime:  big.NewInt(0),
 		TotalPay:        big.NewInt(0),
 		TotalPaid:       big.NewInt(0),
-		TargetReward:    new(big.Int).Set(targetNumber),
-		PeriodReward:    new(big.Int).Set(targetNumber),
+		TargetReward:    new(big.Int).Set(config.InitialTarget),
+		PeriodReward:    new(big.Int).Set(config.InitialTarget),
 		HalfFactor:      0,
 
+		KeeperPledge:     new(big.Int).Set(config.InitialKeeperPledge),
+		ProviderPledge:   new(big.Int).Set(config.InitialProviderPledge),
+		KeeperCount:      0,
+		ProviderCount:    0,
 		LastMint:         0,
 		SubSpacePriceMap: make(map[int64]*big.Int),
 		SubSizeMap:       make(map[int64]*big.Int),

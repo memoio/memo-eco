@@ -8,7 +8,7 @@ import (
 type SizeSimulateFunction func(state *MemoState, reward *big.Int, day int64, config *EconomicsConfig, lastDayOrder *Order) *big.Int
 type PriceSimulateFunction func(state *MemoState, reward *big.Int, day int64, config *EconomicsConfig, lastDayOrder *Order) *big.Int
 type DurationSimulateFunction func(state *MemoState, reward *big.Int, day int64, config *EconomicsConfig, lastDayOrder *Order) int64
-type ProviderSimulateFunction func(state *MemoState, reward *big.Int, day int64, config *EconomicsConfig, lastDayOrder *Order) int64
+type ProviderSimulateFunction func(state *MemoState, reward *big.Int, day int64, config *EconomicsConfig, lastDayOrder *Order) (int64, *big.Int)
 
 var Level1 = false
 var Level2 = false
@@ -41,8 +41,8 @@ func DefaultSizeSimulate(state *MemoState, reward *big.Int, day int64, config *E
 		return size.Div(size, OneBillion)
 	}
 
-	// 流动代币占比小于1/2的时候，新增订单空间下降5%
-	if float64(WeiToMemo(state.TotalLiquid).Int64())/float64(WeiToMemo(state.TotalSupply).Int64()) <= 0.5 {
+	// 流动代币占比小于0.4的时候，新增订单空间下降5%
+	if float64(WeiToMemo(state.TotalLiquid).Int64())/float64(WeiToMemo(state.TotalSupply).Int64()) <= 0.4 {
 		size := new(big.Int).Mul(lastDayOrder.Size, big.NewInt(9_5000_0000))
 		return size.Div(size, OneBillion)
 	}
@@ -161,7 +161,12 @@ func DefaultDurationSimulate(state *MemoState, reward *big.Int, day int64, confi
 	return 365 // 模拟的总周期，单位天
 }
 
-// 简单策略，每天增加50个Provider
-func DefaultProviderSimulate(state *MemoState, reward *big.Int, day int64, config *EconomicsConfig, lastDayOrder *Order) int64 {
-	return 50
+// 简单策略，每天增加50个Provider，同时返回一个Provider需要质押的数量
+// TODO: 动态质押
+func DefaultProviderSimulate(state *MemoState, reward *big.Int, day int64, config *EconomicsConfig, lastDayOrder *Order) (int64, *big.Int) {
+	if state.ProviderCount < 10_0000 {
+		return 50, big.NewInt(10_0000_0000_0000)
+	}
+
+	return 0, big.NewInt(10_0000_0000_0000)
 }
