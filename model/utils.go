@@ -5,6 +5,8 @@ import (
 	"math/big"
 )
 
+var OneHudred = big.NewInt(100)
+
 // 以十亿为基础计算比例
 var OneBillion = big.NewInt(10_0000_0000)
 

@@ -22,8 +22,8 @@ func DefaultSizeSimulate(state *MemoState, reward *big.Int, day int64, config *E
 		return new(big.Int).Set(config.InitialSize) // 起始订单量
 	}
 
-	// 流动代币占比小于1/8的时候，订单数为0
-	if float64(WeiToMemo(state.TotalLiquid).Int64())/float64(WeiToMemo(state.TotalSupply).Int64()) < 0.125 {
+	// 流动代币占比小于1/16的时候，订单数为0
+	if float64(WeiToMemo(state.TotalLiquid).Int64())/float64(WeiToMemo(state.TotalSupply).Int64()) < 0.0625 {
 		size := big.NewInt(0)
 		return size
 	}
@@ -35,13 +35,19 @@ func DefaultSizeSimulate(state *MemoState, reward *big.Int, day int64, config *E
 		return size
 	}
 
+	// 流动代币占比小于1/8的时候，新增订单空间下降30%
+	if float64(WeiToMemo(state.TotalLiquid).Int64())/float64(WeiToMemo(state.TotalSupply).Int64()) < 0.125 {
+		size := new(big.Int).Mul(lastDayOrder.Size, big.NewInt(7_0000_0000))
+		return size.Div(size, OneBillion)
+	}
+
 	// 流动代币占比小于1/4的时候，新增订单空间下降20%
 	if float64(WeiToMemo(state.TotalLiquid).Int64())/float64(WeiToMemo(state.TotalSupply).Int64()) <= 0.25 {
 		size := new(big.Int).Mul(lastDayOrder.Size, big.NewInt(8_0000_0000))
 		return size.Div(size, OneBillion)
 	}
 
-	// 流动代币占比小于0.4的时候，新增订单空间下降5%
+	// 流动代币占比小于2/5的时候，新增订单空间下降5%
 	if float64(WeiToMemo(state.TotalLiquid).Int64())/float64(WeiToMemo(state.TotalSupply).Int64()) <= 0.4 {
 		size := new(big.Int).Mul(lastDayOrder.Size, big.NewInt(9_5000_0000))
 		return size.Div(size, OneBillion)
@@ -96,6 +102,18 @@ func DefaultPriceSimulate(state *MemoState, reward *big.Int, day int64, config *
 	// 初始订单价格
 	if day == 0 {
 		return new(big.Int).Set(config.InitialPrice) // 每天，每GB 0.1Memo 订单平均价格
+	}
+
+	// 流动代币占比小于1/16的时候，Memo定价每天下降30%
+	if float64(WeiToMemo(state.TotalLiquid).Int64())/float64(WeiToMemo(state.TotalSupply).Int64()) < 0.0625 {
+		if lastDayOrder.Price.Cmp(config.MinimumPrice) > 0 {
+			price := new(big.Int).Mul(lastDayOrder.Price, big.NewInt(7_0000_0000))
+			return price.Div(price, OneBillion)
+		}
+
+		// Memo定价不变
+		price := new(big.Int).Mul(lastDayOrder.Price, big.NewInt(10_0000_0000))
+		return price.Div(price, OneBillion)
 	}
 
 	// 流动代币占比小于1/8的时候，Memo定价每天下降20%
@@ -164,7 +182,7 @@ func DefaultDurationSimulate(state *MemoState, reward *big.Int, day int64, confi
 // 简单策略，每天增加50个Provider，同时返回一个Provider需要质押的数量
 // TODO: 动态质押
 func DefaultProviderSimulate(state *MemoState, reward *big.Int, day int64, config *EconomicsConfig, lastDayOrder *Order) (int64, *big.Int) {
-	if state.ProviderCount < 10_0000 {
+	if state.ProviderCount < 20_0000 {
 		return 50, big.NewInt(10_0000_0000_0000)
 	}
 

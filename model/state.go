@@ -2,12 +2,6 @@ package model
 
 import "math/big"
 
-type MintInfo struct {
-	Ratio    *big.Int // 增发比例
-	Size     *big.Int // 期望空间
-	Duration int64    // 期望周期
-}
-
 type Order struct {
 	Size        *big.Int // 每日新增订单空间，单位为 (GB)
 	Price       *big.Int // 订单平均价格，单位为 (GB * Day / 10^-8 Memo)
@@ -29,6 +23,7 @@ type MemoState struct {
 	TotalPaid       *big.Int // 总已支付代币数 单位为 10^-8 Memo
 	TargetReward    *big.Int // 当前目标减半的累积奖励金额
 	PeriodReward    *big.Int // 当前阶段的增发总和，增发完则跳到下一个阶段减半
+	MaxSize         *big.Int // 某个时间点的最大Size
 	HalfFactor      int64    // 当前增发率除一个2^f
 
 	KeeperPledge     *big.Int           // Keeper需要质押的代币数
@@ -55,6 +50,7 @@ func NewMemoState(config *EconomicsConfig) *MemoState {
 		TotalPaid:       big.NewInt(0),
 		TargetReward:    new(big.Int).Set(config.InitialTarget),
 		PeriodReward:    new(big.Int).Set(config.InitialTarget),
+		MaxSize:         big.NewInt(0),
 		HalfFactor:      0,
 
 		KeeperPledge:     new(big.Int).Set(config.InitialKeeperPledge),

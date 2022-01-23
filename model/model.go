@@ -86,11 +86,12 @@ func EcoModelSimulate(config *EconomicsConfig) []plotter.XYs {
 	// 将每天所有的订单抽象成一个订单
 	// 第一天的初始订单
 	order := &Order{
-		Size:        config.SizeSimulate(state, BigZero, 0, config, nil),
-		Price:       config.PriceSimulate(state, BigZero, 0, config, nil),
-		Dur:         config.DurationSimulate(state, BigZero, 0, config, nil),
-		NewProvider: 500, // 第一天，500个Provider
+		Size:  config.SizeSimulate(state, BigZero, 0, config, nil),
+		Price: config.PriceSimulate(state, BigZero, 0, config, nil),
+		Dur:   config.DurationSimulate(state, BigZero, 0, config, nil),
 	}
+
+	order.NewProvider, state.ProviderPledge = config.ProviderSimulate(state, BigZero, 0, config, nil)
 
 	// 开始模拟每天的订单
 	for i := 1; i < int(config.TotalDuration); i++ {
@@ -190,59 +191,37 @@ func EcoModelSimulate(config *EconomicsConfig) []plotter.XYs {
 			}
 		}
 
-		// 计算当前的奖励
-		reward := new(big.Int).Mul(paid, state.Ratio)
-		// 将奖励除以基数
-		reward.Div(reward, OneBillion)
-		// 计算临时的累积奖励
-		tempReward := new(big.Int).Add(reward, state.TotalReward)
+		reward := big.NewInt(0)
 
-		// 处理边界条件，如果奖励已经超过目标，超出部分需要除2
-		isBig := tempReward.Cmp(state.TargetReward)
-		// 比例达到最小增发比例时不再减半
-		if isBig > 0 && state.Ratio.Cmp(config.MinimumRation) > 0 {
-			// 先增发目标内的代币数
-			leftReward := new(big.Int).Sub(state.TargetReward, state.TotalReward)
-			overflowReward := new(big.Int).Sub(tempReward, state.TargetReward)
-			reward.Add(leftReward, overflowReward.Div(overflowReward, BigTwo))
+		// 当该订单处理完，关闭enableMaxSize
+		// 或者当前Size要大于历史上的最大Size时，才会增发
+		if state.TotalSize.Cmp(state.MaxSize) > 0 || !config.EnableMaxSize {
+			// 更新 MaxSize
+			state.MaxSize.Set(state.TotalSize)
+			// 计算当前的奖励
+			reward = new(big.Int).Mul(paid, state.Ratio)
+			// 将奖励除以基数
+			reward.Div(reward, OneBillion)
+			// 计算临时的累积奖励
+			tempReward := new(big.Int).Add(reward, state.TotalReward)
 
-			// 增发计算后奖励
-			state.TotalReward.Add(state.TotalReward, reward)
-			state.TotalSupply.Add(state.TotalSupply, reward)
-			state.TotalLiquid.Add(state.TotalLiquid, reward)
-
-			// 更换目标
-			state.HalfFactor += 1
-
-			factor := new(big.Int).Exp(BigTwo, big.NewInt(state.HalfFactor), BigZero)
-			state.Ratio.Div(config.MintLevel[state.MintLevel].Ratio, factor)
-
-			// 如果增发比例已经小于最小比例，则设为最小比例
-			if state.Ratio.Cmp(config.MinimumRation) < 0 {
-				state.Ratio.Set(config.MinimumRation)
-			} else {
-				state.PeriodReward.Div(state.PeriodReward, BigTwo)
-				state.TargetReward.Add(state.TargetReward, state.PeriodReward)
-			}
-			fmt.Println("----------Change HalfFactor-------------")
-			fmt.Println("Day:", i, "Change HalfFactor to", state.HalfFactor, "reward:", WeiToMemo(reward), "MintLevel:", state.MintLevel)
-			fmt.Println("spacetime:", state.TotalSpaceTime.String(), "esize:", FormatGBytes(tempEsize.Int64()))
-			fmt.Println("Calculate Dur:", float64(new(big.Int).Div(state.TotalSpaceTime, tempEsize).Uint64()))
-			fmt.Println("TotalPaid:", WeiToMemo(state.TotalPaid), "TotalReward", WeiToMemo(state.TotalReward))
-			fmt.Println("TotalLiquid:", WeiToMemo(state.TotalLiquid), "TotalSupply:", WeiToMemo(state.TotalSupply), "Percent:", float64(WeiToMemo(state.TotalLiquid).Int64())/float64(WeiToMemo(state.TotalSupply).Int64()))
-			fmt.Println("TotalSize:", FormatGBytes(state.TotalSize.Int64()))
-			fmt.Println("OrderSize:", FormatGBytes(order.Size.Int64()), "OrderPrice", order.Price)
-			fmt.Println("Issurance ratio:", float64(state.Ratio.Int64())/float64(OneBillion.Int64()), "Providers Count", state.ProviderCount)
-			fmt.Println("Total issue times:", float64(WeiToMemo(state.TotalSupply).Int64())/float64(WeiToMemo(config.InitialSupply).Int64()))
-			// 刚好达到目标
-		} else {
-			// 直接增发所有奖励
-			state.TotalReward.Add(state.TotalReward, reward)
-			state.TotalSupply.Add(state.TotalSupply, reward)
-			state.TotalLiquid.Add(state.TotalLiquid, reward)
-			// 如果已达到目标，接下来的都会受减半因子影响
+			// 处理边界条件，如果奖励已经超过目标，超出部分需要除2
+			isBig := tempReward.Cmp(state.TargetReward)
 			// 比例达到最小增发比例时不再减半
-			if isBig == 0 && state.Ratio.Cmp(config.MinimumRation) > 0 {
+			if isBig > 0 && state.Ratio.Cmp(config.MinimumRation) > 0 {
+				// 先增发目标内的代币数
+				leftReward := new(big.Int).Sub(state.TargetReward, state.TotalReward)
+				overflowReward := new(big.Int).Sub(tempReward, state.TargetReward)
+				reward.Add(leftReward, overflowReward.Div(overflowReward, BigTwo))
+
+				// 增发计算后奖励
+				state.TotalReward.Add(state.TotalReward, reward)
+				state.TotalSupply.Add(state.TotalSupply, reward)
+				state.TotalLiquid.Add(state.TotalLiquid, reward)
+
+				// 更换目标
+				state.HalfFactor += 1
+
 				factor := new(big.Int).Exp(BigTwo, big.NewInt(state.HalfFactor), BigZero)
 				state.Ratio.Div(config.MintLevel[state.MintLevel].Ratio, factor)
 
@@ -253,17 +232,47 @@ func EcoModelSimulate(config *EconomicsConfig) []plotter.XYs {
 					state.PeriodReward.Div(state.PeriodReward, BigTwo)
 					state.TargetReward.Add(state.TargetReward, state.PeriodReward)
 				}
-				fmt.Println("-----------Change HalfFactor------------")
+				fmt.Println("----------Change HalfFactor-------------")
 				fmt.Println("Day:", i, "Change HalfFactor to", state.HalfFactor, "reward:", WeiToMemo(reward), "MintLevel:", state.MintLevel)
 				fmt.Println("spacetime:", state.TotalSpaceTime.String(), "esize:", FormatGBytes(tempEsize.Int64()))
 				fmt.Println("Calculate Dur:", float64(new(big.Int).Div(state.TotalSpaceTime, tempEsize).Uint64()))
-				fmt.Println("TotalPaid:", WeiToMemo(state.TotalPaid), "TotalReward", WeiToMemo(state.TotalReward))
+				fmt.Println("TotalPay:", WeiToMemo(state.TotalPay), "TotalPaid:", WeiToMemo(state.TotalPaid), "TotalReward", WeiToMemo(state.TotalReward))
 				fmt.Println("TotalLiquid:", WeiToMemo(state.TotalLiquid), "TotalSupply:", WeiToMemo(state.TotalSupply), "Percent:", float64(WeiToMemo(state.TotalLiquid).Int64())/float64(WeiToMemo(state.TotalSupply).Int64()))
 				fmt.Println("TotalSize:", FormatGBytes(state.TotalSize.Int64()))
 				fmt.Println("OrderSize:", FormatGBytes(order.Size.Int64()), "OrderPrice", order.Price)
-				fmt.Println("TargetReward:", WeiToMemo(state.TargetReward), "PeriodRewad:", WeiToMemo(state.PeriodReward))
 				fmt.Println("Issurance ratio:", float64(state.Ratio.Int64())/float64(OneBillion.Int64()), "Providers Count", state.ProviderCount)
 				fmt.Println("Total issue times:", float64(WeiToMemo(state.TotalSupply).Int64())/float64(WeiToMemo(config.InitialSupply).Int64()))
+				// 刚好达到目标
+			} else {
+				// 直接增发所有奖励
+				state.TotalReward.Add(state.TotalReward, reward)
+				state.TotalSupply.Add(state.TotalSupply, reward)
+				state.TotalLiquid.Add(state.TotalLiquid, reward)
+				// 如果已达到目标，接下来的都会受减半因子影响
+				// 比例达到最小增发比例时不再减半
+				if isBig == 0 && state.Ratio.Cmp(config.MinimumRation) > 0 {
+					factor := new(big.Int).Exp(BigTwo, big.NewInt(state.HalfFactor), BigZero)
+					state.Ratio.Div(config.MintLevel[state.MintLevel].Ratio, factor)
+
+					// 如果增发比例已经小于最小比例，则设为最小比例
+					if state.Ratio.Cmp(config.MinimumRation) < 0 {
+						state.Ratio.Set(config.MinimumRation)
+					} else {
+						state.PeriodReward.Div(state.PeriodReward, BigTwo)
+						state.TargetReward.Add(state.TargetReward, state.PeriodReward)
+					}
+					fmt.Println("-----------Change HalfFactor------------")
+					fmt.Println("Day:", i, "Change HalfFactor to", state.HalfFactor, "reward:", WeiToMemo(reward), "MintLevel:", state.MintLevel)
+					fmt.Println("spacetime:", state.TotalSpaceTime.String(), "esize:", FormatGBytes(tempEsize.Int64()))
+					fmt.Println("Calculate Dur:", float64(new(big.Int).Div(state.TotalSpaceTime, tempEsize).Uint64()))
+					fmt.Println("TotalPay:", WeiToMemo(state.TotalPay), "TotalPaid:", WeiToMemo(state.TotalPaid), "TotalReward", WeiToMemo(state.TotalReward))
+					fmt.Println("TotalLiquid:", WeiToMemo(state.TotalLiquid), "TotalSupply:", WeiToMemo(state.TotalSupply), "Percent:", float64(WeiToMemo(state.TotalLiquid).Int64())/float64(WeiToMemo(state.TotalSupply).Int64()))
+					fmt.Println("TotalSize:", FormatGBytes(state.TotalSize.Int64()))
+					fmt.Println("OrderSize:", FormatGBytes(order.Size.Int64()), "OrderPrice", order.Price)
+					fmt.Println("TargetReward:", WeiToMemo(state.TargetReward), "PeriodRewad:", WeiToMemo(state.PeriodReward))
+					fmt.Println("Issurance ratio:", float64(state.Ratio.Int64())/float64(OneBillion.Int64()), "Providers Count", state.ProviderCount)
+					fmt.Println("Total issue times:", float64(WeiToMemo(state.TotalSupply).Int64())/float64(WeiToMemo(config.InitialSupply).Int64()))
+				}
 			}
 		}
 
@@ -302,7 +311,7 @@ func EcoModelSimulate(config *EconomicsConfig) []plotter.XYs {
 			fmt.Println("Day:", i, "reward:", WeiToMemo(reward), "MintLevel:", state.MintLevel, "HalfFactor", state.HalfFactor)
 			fmt.Println("spacetime:", state.TotalSpaceTime.String(), "esize:", FormatGBytes(tempEsize.Int64()))
 			fmt.Println("Calculate Dur:", float64(new(big.Int).Div(state.TotalSpaceTime, tempEsize).Uint64()))
-			fmt.Println("TotalPaid:", WeiToMemo(state.TotalPaid), "TotalReward", WeiToMemo(state.TotalReward))
+			fmt.Println("TotalPay:", WeiToMemo(state.TotalPay), "TotalPaid:", WeiToMemo(state.TotalPaid), "TotalReward", WeiToMemo(state.TotalReward))
 			fmt.Println("TotalLiquid:", WeiToMemo(state.TotalLiquid), "TotalSupply:", WeiToMemo(state.TotalSupply), "Percent:", float64(WeiToMemo(state.TotalLiquid).Int64())/float64(WeiToMemo(state.TotalSupply).Int64()))
 			fmt.Println("TotalSize:", FormatGBytes(state.TotalSize.Int64()))
 			fmt.Println("OrderSize:", FormatGBytes(order.Size.Int64()), "OrderPrice", order.Price)
