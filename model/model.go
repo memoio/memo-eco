@@ -31,8 +31,8 @@ func EcoModelSimulate(config *EconomicsConfig) []plotter.XYs {
 		pts[i] = make(plotter.XYs, config.TotalDuration)
 	}
 
-	fmt.Println("Memo initial supply:", WeiToMemo(state.TotalSupply))
-	fmt.Println("Memo initial Liquid:", WeiToMemo(state.TotalLiquid))
+	fmt.Println("Memo initial supply:", WeiToMemo(state.TotalSupply, config.Decimals))
+	fmt.Println("Memo initial Liquid:", WeiToMemo(state.TotalLiquid, config.Decimals))
 
 	// 设置第一天的数据
 	// 假设初始有7个Keeper，计入质押，退出流动
@@ -56,12 +56,12 @@ func EcoModelSimulate(config *EconomicsConfig) []plotter.XYs {
 	// 代币总量数据
 	pts[SUPPLY_INDEX][0].X = 0
 	// 单位换算成Memo
-	pts[SUPPLY_INDEX][0].Y = float64(WeiToMemo(state.TotalSupply).Uint64())
+	pts[SUPPLY_INDEX][0].Y = float64(WeiToMemo(state.TotalSupply, config.Decimals).Uint64())
 
 	// 流通代币数据
 	pts[LIQUID_INDEX][0].X = 0
 	// 单位换算成Memo
-	pts[LIQUID_INDEX][0].Y = float64(WeiToMemo(state.TotalLiquid).Uint64())
+	pts[LIQUID_INDEX][0].Y = float64(WeiToMemo(state.TotalLiquid, config.Decimals).Uint64())
 
 	// 奖励数据
 	pts[REWARD_INDEX][0].X = 0
@@ -69,7 +69,7 @@ func EcoModelSimulate(config *EconomicsConfig) []plotter.XYs {
 
 	// 质押数据
 	pts[PLEDGE_INDEX][0].X = 0
-	pts[PLEDGE_INDEX][0].Y = float64(WeiToMemo(state.TotalPledge).Uint64())
+	pts[PLEDGE_INDEX][0].Y = float64(WeiToMemo(state.TotalPledge, config.Decimals).Uint64())
 
 	// 支付数据
 	pts[PAY_INDEX][0].X = 0
@@ -233,15 +233,18 @@ func EcoModelSimulate(config *EconomicsConfig) []plotter.XYs {
 					state.TargetReward.Add(state.TargetReward, state.PeriodReward)
 				}
 				fmt.Println("----------Change HalfFactor-------------")
-				fmt.Println("Day:", i, "Change HalfFactor to", state.HalfFactor, "reward:", WeiToMemo(reward), "MintLevel:", state.MintLevel)
+				fmt.Println("Day:", i, "Change HalfFactor to", state.HalfFactor, "reward:", WeiToMemo(reward, config.Decimals), "MintLevel:", state.MintLevel)
 				fmt.Println("spacetime:", state.TotalSpaceTime.String(), "esize:", FormatGBytes(tempEsize.Int64()))
 				fmt.Println("Calculate Dur:", float64(new(big.Int).Div(state.TotalSpaceTime, tempEsize).Uint64()))
-				fmt.Println("TotalPay:", WeiToMemo(state.TotalPay), "TotalPaid:", WeiToMemo(state.TotalPaid), "TotalReward", WeiToMemo(state.TotalReward))
-				fmt.Println("TotalLiquid:", WeiToMemo(state.TotalLiquid), "TotalSupply:", WeiToMemo(state.TotalSupply), "Percent:", float64(WeiToMemo(state.TotalLiquid).Int64())/float64(WeiToMemo(state.TotalSupply).Int64()))
+				fmt.Println("TotalPay:", WeiToMemo(state.TotalPay, config.Decimals), "TotalPaid:", WeiToMemo(state.TotalPaid, config.Decimals), "TotalReward", WeiToMemo(state.TotalReward, config.Decimals))
+				fmt.Println("TotalLiquid:", WeiToMemo(state.TotalLiquid, config.Decimals),
+					"TotalSupply:", WeiToMemo(state.TotalSupply, config.Decimals),
+					"Percent:", float64(WeiToMemo(state.TotalLiquid, config.Decimals).Int64())/float64(WeiToMemo(state.TotalSupply, config.Decimals).Int64()))
 				fmt.Println("TotalSize:", FormatGBytes(state.TotalSize.Int64()))
 				fmt.Println("OrderSize:", FormatGBytes(order.Size.Int64()), "OrderPrice", order.Price)
 				fmt.Println("Issurance ratio:", float64(state.Ratio.Int64())/float64(OneBillion.Int64()), "Providers Count", state.ProviderCount)
-				fmt.Println("Total issue times:", float64(WeiToMemo(state.TotalSupply).Int64())/float64(WeiToMemo(config.InitialSupply).Int64()))
+				fmt.Println("Total issue times:", float64(WeiToMemo(state.TotalSupply, config.Decimals).Int64())/float64(WeiToMemo(config.InitialSupply, config.Decimals).Int64()))
+				fmt.Println("TotalPledge:", WeiToMemo(state.TotalPledge, config.Decimals))
 				// 刚好达到目标
 			} else {
 				// 直接增发所有奖励
@@ -262,27 +265,30 @@ func EcoModelSimulate(config *EconomicsConfig) []plotter.XYs {
 						state.TargetReward.Add(state.TargetReward, state.PeriodReward)
 					}
 					fmt.Println("-----------Change HalfFactor------------")
-					fmt.Println("Day:", i, "Change HalfFactor to", state.HalfFactor, "reward:", WeiToMemo(reward), "MintLevel:", state.MintLevel)
+					fmt.Println("Day:", i, "Change HalfFactor to", state.HalfFactor, "reward:", WeiToMemo(reward, config.Decimals), "MintLevel:", state.MintLevel)
 					fmt.Println("spacetime:", state.TotalSpaceTime.String(), "esize:", FormatGBytes(tempEsize.Int64()))
 					fmt.Println("Calculate Dur:", float64(new(big.Int).Div(state.TotalSpaceTime, tempEsize).Uint64()))
-					fmt.Println("TotalPay:", WeiToMemo(state.TotalPay), "TotalPaid:", WeiToMemo(state.TotalPaid), "TotalReward", WeiToMemo(state.TotalReward))
-					fmt.Println("TotalLiquid:", WeiToMemo(state.TotalLiquid), "TotalSupply:", WeiToMemo(state.TotalSupply), "Percent:", float64(WeiToMemo(state.TotalLiquid).Int64())/float64(WeiToMemo(state.TotalSupply).Int64()))
+					fmt.Println("TotalPay:", WeiToMemo(state.TotalPay, config.Decimals), "TotalPaid:", WeiToMemo(state.TotalPaid, config.Decimals), "TotalReward", WeiToMemo(state.TotalReward, config.Decimals))
+					fmt.Println("TotalLiquid:", WeiToMemo(state.TotalLiquid, config.Decimals),
+						"TotalSupply:", WeiToMemo(state.TotalSupply, config.Decimals),
+						"Percent:", float64(WeiToMemo(state.TotalLiquid, config.Decimals).Int64())/float64(WeiToMemo(state.TotalSupply, config.Decimals).Int64()))
 					fmt.Println("TotalSize:", FormatGBytes(state.TotalSize.Int64()))
 					fmt.Println("OrderSize:", FormatGBytes(order.Size.Int64()), "OrderPrice", order.Price)
-					fmt.Println("TargetReward:", WeiToMemo(state.TargetReward), "PeriodRewad:", WeiToMemo(state.PeriodReward))
+					fmt.Println("TargetReward:", WeiToMemo(state.TargetReward, config.Decimals), "PeriodRewad:", WeiToMemo(state.PeriodReward, config.Decimals))
 					fmt.Println("Issurance ratio:", float64(state.Ratio.Int64())/float64(OneBillion.Int64()), "Providers Count", state.ProviderCount)
-					fmt.Println("Total issue times:", float64(WeiToMemo(state.TotalSupply).Int64())/float64(WeiToMemo(config.InitialSupply).Int64()))
+					fmt.Println("Total issue times:", float64(WeiToMemo(state.TotalSupply, config.Decimals).Int64())/float64(WeiToMemo(config.InitialSupply, config.Decimals).Int64()))
+					fmt.Println("TotalPledge:", WeiToMemo(state.TotalPledge, config.Decimals))
 				}
 			}
 		}
 
 		// 填充纵轴数据
-		pts[SUPPLY_INDEX][i].Y = float64(WeiToMemo(state.TotalSupply).Int64())
-		pts[LIQUID_INDEX][i].Y = float64(WeiToMemo(state.TotalLiquid).Int64())
-		pts[REWARD_INDEX][i].Y = float64(WeiToMemo(state.TotalReward).Int64())
-		pts[PLEDGE_INDEX][i].Y = float64(WeiToMemo(state.TotalPledge).Uint64())
-		pts[PAY_INDEX][i].Y = float64(WeiToMemo(state.TotalPay).Uint64())
-		pts[PAID_INDEX][i].Y = float64(WeiToMemo(state.TotalPaid).Uint64())
+		pts[SUPPLY_INDEX][i].Y = float64(WeiToMemo(state.TotalSupply, config.Decimals).Int64())
+		pts[LIQUID_INDEX][i].Y = float64(WeiToMemo(state.TotalLiquid, config.Decimals).Int64())
+		pts[REWARD_INDEX][i].Y = float64(WeiToMemo(state.TotalReward, config.Decimals).Int64())
+		pts[PLEDGE_INDEX][i].Y = float64(WeiToMemo(state.TotalPledge, config.Decimals).Uint64())
+		pts[PAY_INDEX][i].Y = float64(WeiToMemo(state.TotalPay, config.Decimals).Uint64())
+		pts[PAID_INDEX][i].Y = float64(WeiToMemo(state.TotalPaid, config.Decimals).Uint64())
 		pts[SIZE_INDEX][i].Y = float64(state.TotalSize.Int64())
 
 		// 模拟下一次订单变化
@@ -308,16 +314,19 @@ func EcoModelSimulate(config *EconomicsConfig) []plotter.XYs {
 		// 打印一些时间点的数据
 		if i%200 >= 0 && i%200 < 3 || int64(i) >= config.TotalDuration-5 {
 			fmt.Println("--------Specific---------------")
-			fmt.Println("Day:", i, "reward:", WeiToMemo(reward), "MintLevel:", state.MintLevel, "HalfFactor", state.HalfFactor)
+			fmt.Println("Day:", i, "reward:", WeiToMemo(reward, config.Decimals), "MintLevel:", state.MintLevel, "HalfFactor", state.HalfFactor)
 			fmt.Println("spacetime:", state.TotalSpaceTime.String(), "esize:", FormatGBytes(tempEsize.Int64()))
 			fmt.Println("Calculate Dur:", float64(new(big.Int).Div(state.TotalSpaceTime, tempEsize).Uint64()))
-			fmt.Println("TotalPay:", WeiToMemo(state.TotalPay), "TotalPaid:", WeiToMemo(state.TotalPaid), "TotalReward", WeiToMemo(state.TotalReward))
-			fmt.Println("TotalLiquid:", WeiToMemo(state.TotalLiquid), "TotalSupply:", WeiToMemo(state.TotalSupply), "Percent:", float64(WeiToMemo(state.TotalLiquid).Int64())/float64(WeiToMemo(state.TotalSupply).Int64()))
+			fmt.Println("TotalPay:", WeiToMemo(state.TotalPay, config.Decimals), "TotalPaid:", WeiToMemo(state.TotalPaid, config.Decimals), "TotalReward", WeiToMemo(state.TotalReward, config.Decimals))
+			fmt.Println("TotalLiquid:", WeiToMemo(state.TotalLiquid, config.Decimals),
+				"TotalSupply:", WeiToMemo(state.TotalSupply, config.Decimals),
+				"Percent:", float64(WeiToMemo(state.TotalLiquid, config.Decimals).Int64())/float64(WeiToMemo(state.TotalSupply, config.Decimals).Int64()))
 			fmt.Println("TotalSize:", FormatGBytes(state.TotalSize.Int64()))
 			fmt.Println("OrderSize:", FormatGBytes(order.Size.Int64()), "OrderPrice", order.Price)
-			fmt.Println("TargetReward:", WeiToMemo(state.TargetReward), "PeriodRewad:", WeiToMemo(state.PeriodReward))
+			fmt.Println("TargetReward:", WeiToMemo(state.TargetReward, config.Decimals), "PeriodRewad:", WeiToMemo(state.PeriodReward, config.Decimals))
 			fmt.Println("Issurance ratio:", float64(state.Ratio.Int64())/float64(OneBillion.Int64()), "Providers Count", state.ProviderCount)
-			fmt.Println("Total issue times:", float64(WeiToMemo(state.TotalSupply).Int64())/float64(WeiToMemo(config.InitialSupply).Int64()))
+			fmt.Println("Total issue times:", float64(WeiToMemo(state.TotalSupply, config.Decimals).Int64())/float64(WeiToMemo(config.InitialSupply, config.Decimals).Int64()))
+			fmt.Println("TotalPledge:", WeiToMemo(state.TotalPledge, config.Decimals))
 		}
 
 		state.LastMint = start

@@ -10,14 +10,11 @@ var OneHudred = big.NewInt(100)
 // 以十亿为基础计算比例
 var OneBillion = big.NewInt(10_0000_0000)
 
-// Memo的代币精度
-var Decimals = big.NewInt(1_0000_0000) // 用户换算成Memo
-
 var BigZero = big.NewInt(0) // 0
 var BigTwo = big.NewInt(2)  // 2
 
-func WeiToMemo(m *big.Int) *big.Int {
-	return new(big.Int).Div(m, Decimals)
+func WeiToMemo(m, decimals *big.Int) *big.Int {
+	return new(big.Int).Div(m, decimals)
 }
 
 const (

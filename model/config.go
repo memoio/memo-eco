@@ -10,6 +10,7 @@ type MintInfo struct {
 
 type EconomicsConfig struct {
 	MintLevel             []MintInfo // 增发阶段设计
+	Decimals              *big.Int   // Memo代币精度
 	MinimumRation         *big.Int   // 最小增发率，减半到最小增发率后保持稳定
 	InitialSupply         *big.Int   // 创世代币数量, 以 10^-8 Memo 为单位
 	InitialTarget         *big.Int   // 创世第一阶段目标增发代币数, 以 10^-8 Memo 为单位，往后开始减半
@@ -29,6 +30,7 @@ type EconomicsConfig struct {
 }
 
 func DefaultEconomicsConfig() *EconomicsConfig {
+	decimals := new(big.Int).Exp(big.NewInt(10), big.NewInt(8), nil) // 精度为8
 	return &EconomicsConfig{
 		MintLevel: []MintInfo{
 			{
@@ -58,16 +60,17 @@ func DefaultEconomicsConfig() *EconomicsConfig {
 			},
 		},
 
+		Decimals:      decimals,
 		MinimumRation: new(big.Int).Mul(new(big.Int).Div(OneBillion, OneHudred), big.NewInt(3)), // 最小增发比例3%
-		InitialSupply: new(big.Int).Mul(big.NewInt(1000_0000_0000), Decimals),                   // 设置初始发行量，1000亿，精度为8，设Memo发行价为 0.0002U
-		InitialTarget: new(big.Int).Mul(big.NewInt(500_0000_0000), Decimals),                    // 初始增发奖励目标500亿，到达后减半至250亿，以此类推，直到达到最小增发率
+		InitialSupply: new(big.Int).Mul(big.NewInt(1000_0000_0000), decimals),                   // 设置初始发行量，1000亿，精度为8，设Memo发行价为 0.0002U
+		InitialTarget: new(big.Int).Mul(big.NewInt(500_0000_0000), decimals),                    // 初始增发奖励目标500亿，到达后减半至250亿，以此类推，直到达到最小增发率
 
-		InitialKeeperPledge:   big.NewInt(5000_0000_0000_0000), // 五千万 Memo
-		InitialProviderPledge: big.NewInt(100_0000_0000_0000),  // 一百万 Memo
+		InitialKeeperPledge:   new(big.Int).Mul(big.NewInt(5000_0000), decimals), // 五千万 Memo
+		InitialProviderPledge: new(big.Int).Mul(big.NewInt(1000000), decimals),   // 一百万 Memo
 
 		InitialSize:  big.NewInt(500),                               // 500GB
-		InitialPrice: new(big.Int).Mul(Decimals, big.NewInt(1)),     // 1 GB*Day/Memo
-		MinimumPrice: new(big.Int).Div(Decimals, big.NewInt(10000)), // 0.00001 Memo
+		InitialPrice: new(big.Int).Div(decimals, big.NewInt(1)),     // 1 GB*Day/Memo
+		MinimumPrice: new(big.Int).Div(decimals, big.NewInt(10000)), // 0.00001 Memo
 
 		SizeSimulate:     DefaultSizeSimulate,
 		PriceSimulate:    DefaultPriceSimulate,

@@ -23,7 +23,7 @@ func DefaultSizeSimulate(state *MemoState, reward *big.Int, day int64, config *E
 	}
 
 	// 流动代币占比小于1/16的时候，订单数为0
-	if float64(WeiToMemo(state.TotalLiquid).Int64())/float64(WeiToMemo(state.TotalSupply).Int64()) < 0.0625 {
+	if float64(WeiToMemo(state.TotalLiquid, config.Decimals).Int64())/float64(WeiToMemo(state.TotalSupply, config.Decimals).Int64()) < 0.0625 {
 		size := big.NewInt(0)
 		return size
 	}
@@ -36,19 +36,19 @@ func DefaultSizeSimulate(state *MemoState, reward *big.Int, day int64, config *E
 	}
 
 	// 流动代币占比小于1/8的时候，新增订单空间下降30%
-	if float64(WeiToMemo(state.TotalLiquid).Int64())/float64(WeiToMemo(state.TotalSupply).Int64()) < 0.125 {
+	if float64(WeiToMemo(state.TotalLiquid, config.Decimals).Int64())/float64(WeiToMemo(state.TotalSupply, config.Decimals).Int64()) < 0.125 {
 		size := new(big.Int).Mul(lastDayOrder.Size, big.NewInt(7_0000_0000))
 		return size.Div(size, OneBillion)
 	}
 
 	// 流动代币占比小于1/4的时候，新增订单空间下降20%
-	if float64(WeiToMemo(state.TotalLiquid).Int64())/float64(WeiToMemo(state.TotalSupply).Int64()) <= 0.25 {
+	if float64(WeiToMemo(state.TotalLiquid, config.Decimals).Int64())/float64(WeiToMemo(state.TotalSupply, config.Decimals).Int64()) <= 0.25 {
 		size := new(big.Int).Mul(lastDayOrder.Size, big.NewInt(8_0000_0000))
 		return size.Div(size, OneBillion)
 	}
 
 	// 流动代币占比小于2/5的时候，新增订单空间下降5%
-	if float64(WeiToMemo(state.TotalLiquid).Int64())/float64(WeiToMemo(state.TotalSupply).Int64()) <= 0.4 {
+	if float64(WeiToMemo(state.TotalLiquid, config.Decimals).Int64())/float64(WeiToMemo(state.TotalSupply, config.Decimals).Int64()) <= 0.4 {
 		size := new(big.Int).Mul(lastDayOrder.Size, big.NewInt(9_5000_0000))
 		return size.Div(size, OneBillion)
 	}
@@ -61,7 +61,11 @@ func DefaultSizeSimulate(state *MemoState, reward *big.Int, day int64, config *E
 
 	if !Level1 {
 		fmt.Println("-----------------------")
-		fmt.Println("Day:", day, "Level1, OrderSize:", FormatGBytes(lastDayOrder.Size.Int64()), "reward:", WeiToMemo(reward), "MintLevel:", state.MintLevel, "TotalSupply:", WeiToMemo(state.TotalSupply), "TotalLiquid", WeiToMemo(state.TotalLiquid))
+		fmt.Println("Day:", day, "Level1, OrderSize:", FormatGBytes(lastDayOrder.Size.Int64()),
+			"reward:", WeiToMemo(reward, config.Decimals),
+			"MintLevel:", state.MintLevel,
+			"TotalSupply:", WeiToMemo(state.TotalSupply, config.Decimals),
+			"TotalLiquid", WeiToMemo(state.TotalLiquid, config.Decimals))
 		fmt.Println("-----------------------")
 		Level1 = true
 	}
@@ -74,7 +78,11 @@ func DefaultSizeSimulate(state *MemoState, reward *big.Int, day int64, config *E
 
 	if !Level2 {
 		fmt.Println("-----------------------")
-		fmt.Println("Day:", day, "Level2, OrderSize:", FormatGBytes(lastDayOrder.Size.Int64()), "reward:", WeiToMemo(reward), "MintLevel:", state.MintLevel, "TotalSupply:", WeiToMemo(state.TotalSupply), "TotalLiquid", WeiToMemo(state.TotalLiquid))
+		fmt.Println("Day:", day, "Level2, OrderSize:", FormatGBytes(lastDayOrder.Size.Int64()),
+			"reward:", WeiToMemo(reward, config.Decimals),
+			"MintLevel:", state.MintLevel,
+			"TotalSupply:", WeiToMemo(state.TotalSupply, config.Decimals),
+			"TotalLiquid", WeiToMemo(state.TotalLiquid, config.Decimals))
 		fmt.Println("-----------------------")
 		Level2 = true
 	}
@@ -87,7 +95,11 @@ func DefaultSizeSimulate(state *MemoState, reward *big.Int, day int64, config *E
 
 	if !Level3 {
 		fmt.Println("-----------------------")
-		fmt.Println("Day:", day, "Level3, OrderSize:", FormatGBytes(lastDayOrder.Size.Int64()), "reward:", WeiToMemo(reward), "MintLevel:", state.MintLevel, "TotalSupply:", WeiToMemo(state.TotalSupply), "TotalLiquid", WeiToMemo(state.TotalLiquid))
+		fmt.Println("Day:", day, "Level3, OrderSize:", FormatGBytes(lastDayOrder.Size.Int64()),
+			"reward:", WeiToMemo(reward, config.Decimals),
+			"MintLevel:", state.MintLevel,
+			"TotalSupply:", WeiToMemo(state.TotalSupply, config.Decimals),
+			"TotalLiquid", WeiToMemo(state.TotalLiquid, config.Decimals))
 		fmt.Println("-----------------------")
 		Level3 = true
 	}
@@ -105,7 +117,7 @@ func DefaultPriceSimulate(state *MemoState, reward *big.Int, day int64, config *
 	}
 
 	// 流动代币占比小于1/16的时候，Memo定价每天下降30%
-	if float64(WeiToMemo(state.TotalLiquid).Int64())/float64(WeiToMemo(state.TotalSupply).Int64()) < 0.0625 {
+	if float64(WeiToMemo(state.TotalLiquid, config.Decimals).Int64())/float64(WeiToMemo(state.TotalSupply, config.Decimals).Int64()) < 0.0625 {
 		if lastDayOrder.Price.Cmp(config.MinimumPrice) > 0 {
 			price := new(big.Int).Mul(lastDayOrder.Price, big.NewInt(7_0000_0000))
 			return price.Div(price, OneBillion)
@@ -117,7 +129,7 @@ func DefaultPriceSimulate(state *MemoState, reward *big.Int, day int64, config *
 	}
 
 	// 流动代币占比小于1/8的时候，Memo定价每天下降20%
-	if float64(WeiToMemo(state.TotalLiquid).Int64())/float64(WeiToMemo(state.TotalSupply).Int64()) < 0.125 {
+	if float64(WeiToMemo(state.TotalLiquid, config.Decimals).Int64())/float64(WeiToMemo(state.TotalSupply, config.Decimals).Int64()) < 0.125 {
 		if lastDayOrder.Price.Cmp(config.MinimumPrice) > 0 {
 			price := new(big.Int).Mul(lastDayOrder.Price, big.NewInt(8_0000_0000))
 			return price.Div(price, OneBillion)
@@ -129,7 +141,7 @@ func DefaultPriceSimulate(state *MemoState, reward *big.Int, day int64, config *
 	}
 
 	// 流动代币占比小于1/4的时候，Memo定价每天下降10%
-	if float64(WeiToMemo(state.TotalLiquid).Int64())/float64(WeiToMemo(state.TotalSupply).Int64()) < 0.25 {
+	if float64(WeiToMemo(state.TotalLiquid, config.Decimals).Int64())/float64(WeiToMemo(state.TotalSupply, config.Decimals).Int64()) < 0.25 {
 		if lastDayOrder.Price.Cmp(config.MinimumPrice) > 0 {
 			price := new(big.Int).Mul(lastDayOrder.Price, big.NewInt(9_0000_0000))
 			return price.Div(price, OneBillion)
@@ -141,7 +153,7 @@ func DefaultPriceSimulate(state *MemoState, reward *big.Int, day int64, config *
 	}
 
 	// 流动代币占比小于1/2的时候，Memo定价每天下降5%
-	if float64(WeiToMemo(state.TotalLiquid).Int64())/float64(WeiToMemo(state.TotalSupply).Int64()) < 0.5 {
+	if float64(WeiToMemo(state.TotalLiquid, config.Decimals).Int64())/float64(WeiToMemo(state.TotalSupply, config.Decimals).Int64()) < 0.5 {
 		if lastDayOrder.Price.Cmp(config.MinimumPrice) > 0 {
 			price := new(big.Int).Mul(lastDayOrder.Price, big.NewInt(9_5000_0000))
 			return price.Div(price, OneBillion)
@@ -152,19 +164,19 @@ func DefaultPriceSimulate(state *MemoState, reward *big.Int, day int64, config *
 	}
 
 	// 流动代币占比小于2/3的时候，Memo定价不变
-	if float64(WeiToMemo(state.TotalLiquid).Int64())/float64(WeiToMemo(state.TotalSupply).Int64()) < 0.667 {
+	if float64(WeiToMemo(state.TotalLiquid, config.Decimals).Int64())/float64(WeiToMemo(state.TotalSupply, config.Decimals).Int64()) < 0.667 {
 		price := new(big.Int).Mul(lastDayOrder.Price, big.NewInt(10_0000_0000))
 		return price.Div(price, OneBillion)
 	}
 
 	// 流动代币占比小于2/3的时候，Memo定价每天上升5%
-	if float64(WeiToMemo(state.TotalLiquid).Int64())/float64(WeiToMemo(state.TotalSupply).Int64()) < 0.667 {
+	if float64(WeiToMemo(state.TotalLiquid, config.Decimals).Int64())/float64(WeiToMemo(state.TotalSupply, config.Decimals).Int64()) < 0.667 {
 		price := new(big.Int).Mul(lastDayOrder.Price, big.NewInt(10_5000_0000))
 		return price.Div(price, OneBillion)
 	}
 
 	// 流动代币占比小于3/4的时候，Memo定价每天上升10%
-	if float64(WeiToMemo(state.TotalLiquid).Int64())/float64(WeiToMemo(state.TotalSupply).Int64()) < 0.75 {
+	if float64(WeiToMemo(state.TotalLiquid, config.Decimals).Int64())/float64(WeiToMemo(state.TotalSupply, config.Decimals).Int64()) < 0.75 {
 		price := new(big.Int).Mul(lastDayOrder.Price, big.NewInt(11_0000_0000))
 		return price.Div(price, OneBillion)
 	}
@@ -182,9 +194,9 @@ func DefaultDurationSimulate(state *MemoState, reward *big.Int, day int64, confi
 // 简单策略，每天增加50个Provider，同时返回一个Provider需要质押的数量
 // TODO: 动态质押
 func DefaultProviderSimulate(state *MemoState, reward *big.Int, day int64, config *EconomicsConfig, lastDayOrder *Order) (int64, *big.Int) {
-	if state.ProviderCount < 20_0000 {
-		return 50, big.NewInt(10_0000_0000_0000)
+	if state.ProviderCount < 8_0000 {
+		return 50, new(big.Int).Set(config.InitialProviderPledge)
 	}
 
-	return 0, big.NewInt(10_0000_0000_0000)
+	return 0, new(big.Int).Set(config.InitialProviderPledge)
 }
