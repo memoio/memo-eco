@@ -404,13 +404,6 @@ TotalPledge: 73800000000
 
 得出仿真结果：四年后总空间为：3.63EiB，总增发935.9亿Memo，流动Memo占比56.7%。
 
-代币曲线如下图所示，第一根线为总量，第二根线为流动代币量，第三根线为总奖励代币数，第四根线为总质押代币数。
-
-![token](C:\Users\xcshuan\OneDrive\MEFS开发\token-1.png)
-
-然后是空间变化曲线：
-
-![size](C:\Users\xcshuan\OneDrive\MEFS开发\size-1.png)
 
 ### 3.3.2 选项二
 
@@ -431,11 +424,3 @@ TotalPledge: 442800000
 ```
 
 相比创世发行，增发了95.88%的代币，5.75亿的代币，空间为3.58EiB。
-
-代币曲线如下图所示，第一根线为总量，第二根线为流动代币量，第三根线为总奖励代币数，第四根线为总质押代币数。
-
-![token](C:\Users\xcshuan\OneDrive\MEFS开发\token-2.png)
-
-然后是空间变化曲线：
-
-![size](C:\Users\xcshuan\OneDrive\MEFS开发\size-2.png)
