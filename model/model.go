@@ -32,7 +32,7 @@ func EcoModelSimulate(config *EconomicsConfig) []plotter.XYs {
 	}
 
 	fmt.Println("Memo initial supply:", WeiToMemo(state.TotalSupply, config.Decimals))
-	fmt.Println("Memo initial Liquid:", WeiToMemo(state.TotalLiquid, config.Decimals))
+	fmt.Println("Memo initial liquid:", WeiToMemo(state.TotalLiquid, config.Decimals))
 
 	// 设置第一天的数据
 	// 假设初始有7个Keeper，计入质押，退出流动
