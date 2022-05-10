@@ -49,7 +49,6 @@ func main() {
 	}
 
 	err = plotutil.AddLinePoints(pPay,
-		"Pay", points[model.PAY_INDEX],
 		"Paid", points[model.PAID_INDEX],
 	)
 

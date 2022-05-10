@@ -13,14 +13,20 @@ var OneBillion = big.NewInt(10_0000_0000)
 var BigZero = big.NewInt(0) // 0
 var BigTwo = big.NewInt(2)  // 2
 
-func WeiToMemo(m, decimals *big.Int) *big.Int {
-	return new(big.Int).Div(m, decimals)
+func WeiToMemo(m *big.Int) *big.Int {
+	return new(big.Int).Div(m, big.NewInt(Memo))
 }
 
 const (
-	TiB = 1024
-	PiB = 1024 * 1024
-	EiB = 1024 * 1024 * 1024
+	Day  = 86400
+	Memo = 1e18
+	KiB  = 1024
+	MiB  = 1048576
+	GiB  = 1073741824
+
+	TiB = 1024 * GiB
+	PiB = 1024 * TiB
+	EiB = 1024 * PiB
 )
 
 func FormatGBytes(i int64) (result string) {

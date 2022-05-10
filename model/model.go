@@ -3,6 +3,8 @@ package model
 import (
 	"fmt"
 	"math/big"
+	"math/rand"
+	"time"
 
 	"gonum.org/v1/plot/plotter"
 )
@@ -14,15 +16,187 @@ const (
 	LIQUID_INDEX = 1
 	REWARD_INDEX = 2
 	PLEDGE_INDEX = 3
-	PAY_INDEX    = 4
-	PAID_INDEX   = 5
-	SIZE_INDEX   = 6
+
+	PAID_INDEX = 5
+	SIZE_INDEX = 6
 )
 
+// assume each provider has 4TB, one group has 5000 provider
+func (s *MemoState) updateGroup() {
+	if s.day%30 == 0 {
+		s.groups++
+		s.keeperCount += KCntPerGroup
+		kp := new(big.Int).Mul(s.cfg.KeeperPledge, big.NewInt(KCntPerGroup))
+		s.fixPledge.Add(s.fixPledge, kp)
+		s.pledge.Add(s.pledge, kp)
+		s.liquid.Sub(s.liquid, kp)
+	}
+
+	if s.providerCount < s.groups*PCntPerGroup {
+		s.providerCount += ProCreate
+		pp := new(big.Int).Mul(s.cfg.ProviderPledge, big.NewInt(ProCreate))
+		s.fixPledge.Add(s.fixPledge, pp)
+		s.pledge.Add(s.pledge, pp)
+		s.liquid.Sub(s.liquid, pp)
+	}
+}
+
+// each provider has one order
+func (s *MemoState) updateOrder() {
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	for i := 0; i < int(s.providerCount); i++ {
+		//dur := uint64(MinDuration + r.Int63n(4*MinDuration-MinDuration))
+		dur := uint64(DefaultDuration)
+		size := big.NewInt(DefaultSize + r.Int63n(10*DefaultSize-DefaultSize/10))
+		price := int64(DefaultPrice)
+
+		sprice := new(big.Int).Mul(size, big.NewInt(price))
+		sprice.Div(sprice, big.NewInt(GiB))
+
+		ss, ok := s.subSizeMap[s.day+dur]
+		if ok {
+			ss.Add(ss, size)
+		} else {
+			s.subSizeMap[s.day+dur] = size
+		}
+
+		sp, ok := s.subPriceMap[s.day+dur]
+		if ok {
+			sp.Add(sp, sprice)
+		} else {
+			s.subPriceMap[s.day+dur] = sprice
+		}
+
+		s.size.Add(s.size, size)
+		s.spacePrice.Add(s.spacePrice, sprice)
+
+		st := new(big.Int).SetUint64(dur)
+		st.Mul(st, size)
+		s.spaceTime.Add(s.spaceTime, st)
+
+		pay := new(big.Int).Mul(sprice, new(big.Int).SetUint64(dur))
+		s.paid.Add(s.paid, pay)
+
+		// 1% for tax
+		pay.Div(pay, big.NewInt(100))
+		s.foundation.Add(s.foundation, pay)
+
+		// %5 for manage and tax
+		pay.Mul(pay, big.NewInt(100+LinearRate+EndRate+TaxRate))
+		s.liquid.Sub(s.liquid, pay)
+	}
+}
+
+func (s *MemoState) updateReward() {
+	reward := new(big.Int).Mul(s.spacePrice, big.NewInt(Day))
+	reward.Mul(reward, s.mint.Ratio)
+	reward.Div(reward, big.NewInt(RatioDecimal))
+
+	if reward.Cmp(s.mint.Residual) > 0 {
+		fmt.Println("reward not enough:", WeiToMemo(reward), WeiToMemo(s.mint.Residual))
+		reward.Set(s.mint.Residual)
+	}
+
+	if reward.Cmp(s.mint.Reward) > 0 {
+		fmt.Println("stage reward not enough:", WeiToMemo(reward), WeiToMemo(s.mint.Reward))
+		reward.Set(s.mint.Reward)
+	}
+
+	s.mint.Reward.Sub(s.mint.Reward, reward)
+	s.mint.Residual.Sub(s.mint.Residual, reward)
+
+	s.profit.Set(reward)
+
+	s.reward.Add(s.reward, reward)
+}
+
+func (s *MemoState) updateIncome() {
+	// update income for provider and keeper
+	income := new(big.Int).Mul(s.spacePrice, big.NewInt(Day))
+	s.pincome.Add(s.pincome, income)
+	income.Mul(income, big.NewInt(LinearRate))
+	income.Div(income, big.NewInt(100))
+	s.kincome.Add(s.kincome, income)
+
+	ss, ok := s.subSizeMap[s.day]
+	if ok {
+		s.size.Sub(s.size, ss)
+	}
+
+	sp, ok := s.subPriceMap[s.day]
+	if ok {
+		s.spacePrice.Sub(s.spacePrice, sp)
+		income.Mul(sp, big.NewInt(Day))
+		income.Mul(income, big.NewInt(EndRate))
+		income.Div(income, big.NewInt(100))
+		s.kincome.Add(s.kincome, income)
+	}
+}
+
+// depend on profit
+func (s *MemoState) updatePledge() {
+	pt := WeiToMemo(s.pledge)
+
+	if pt.BitLen() == 0 {
+		return
+	}
+
+	// profit > 1% per day
+	if new(big.Int).Div(s.profit, pt).Cmp(big.NewInt(Memo/100)) > 0 {
+		for {
+			pt.Mul(pt, big.NewInt(11))
+			pt.Div(pt, big.NewInt(10))
+			if new(big.Int).Div(s.profit, pt).Cmp(big.NewInt(Memo/100)) < 0 {
+				pt.Mul(pt, big.NewInt(Memo))
+				if pt.Cmp(s.pledge) > 0 {
+					// pledge more
+					pt.Sub(pt, s.pledge)
+					s.pledge.Add(s.pledge, pt)
+					s.liquid.Sub(s.liquid, pt)
+					fmt.Println("pledge: ", WeiToMemo(pt))
+				}
+				break
+			}
+		}
+	}
+
+	pt = WeiToMemo(s.pledge)
+
+	// profit < 0.25%
+	if new(big.Int).Div(s.profit, pt).Cmp(big.NewInt(Memo/400)) < 0 {
+		for {
+			pt.Mul(pt, big.NewInt(9))
+			pt.Div(pt, big.NewInt(10))
+			if pt.BitLen() == 0 {
+				return
+			}
+			if new(big.Int).Div(s.profit, pt).Cmp(big.NewInt(Memo/400)) > 0 {
+				if pt.Cmp(s.pledge) < 0 {
+					// withdraw
+					if pt.Cmp(s.fixPledge) < 0 {
+						pt.Set(s.fixPledge)
+					}
+
+					pt.Sub(s.pledge, pt)
+					s.liquid.Add(s.liquid, pt)
+					s.pledge.Sub(s.pledge, pt)
+					fmt.Println("withdraw: ", WeiToMemo(pt))
+				}
+
+				break
+			}
+		}
+	}
+}
+
+func (s *MemoState) checkMint() {
+	nsize := new(big.Int).Div(s.spaceTime, big.NewInt(MinDuration))
+	s.mint.Check(nsize)
+}
+
 // 生成每天的模拟数据
-func EcoModelSimulate(config *EconomicsConfig) []plotter.XYs {
-	state := NewMemoState(config)
-	state.Ratio.Set(config.MintLevel[0].Ratio)
+func EcoModelSimulate(config *Config) []plotter.XYs {
+	s := NewMemoState(config)
 
 	// 计算这么多天的增发
 	pts := make([]plotter.XYs, POINTS_COUNT)
@@ -31,37 +205,18 @@ func EcoModelSimulate(config *EconomicsConfig) []plotter.XYs {
 		pts[i] = make(plotter.XYs, config.TotalDuration)
 	}
 
-	fmt.Println("Memo initial supply:", WeiToMemo(state.TotalSupply, config.Decimals))
-	fmt.Println("Memo initial liquid:", WeiToMemo(state.TotalLiquid, config.Decimals))
-
-	// 设置第一天的数据
-	// 假设初始有7个Keeper，计入质押，退出流动
-	initialKeeperPledge := new(big.Int).Mul(big.NewInt(7), state.KeeperPledge)
-	state.TotalPledge.Add(
-		state.TotalPledge,
-		initialKeeperPledge,
-	)
-	state.KeeperCount += 7
-	state.TotalLiquid.Sub(state.TotalLiquid, initialKeeperPledge)
-
-	// 假设初始有500个Provider，计入质押，退出流动
-	initialProviderPledge := new(big.Int).Mul(big.NewInt(500), state.ProviderPledge)
-	state.TotalPledge.Add(
-		state.TotalPledge,
-		initialProviderPledge,
-	)
-	state.ProviderCount += 500
-	state.TotalLiquid.Sub(state.TotalLiquid, initialProviderPledge)
+	fmt.Println("Memo initial supply:", WeiToMemo(s.cfg.TotalSupply))
+	fmt.Println("Memo initial liquid:", WeiToMemo(s.liquid))
 
 	// 代币总量数据
 	pts[SUPPLY_INDEX][0].X = 0
 	// 单位换算成Memo
-	pts[SUPPLY_INDEX][0].Y = float64(WeiToMemo(state.TotalSupply, config.Decimals).Uint64())
+	pts[SUPPLY_INDEX][0].Y = float64(WeiToMemo(s.cfg.TotalSupply).Uint64())
 
 	// 流通代币数据
 	pts[LIQUID_INDEX][0].X = 0
 	// 单位换算成Memo
-	pts[LIQUID_INDEX][0].Y = float64(WeiToMemo(state.TotalLiquid, config.Decimals).Uint64())
+	pts[LIQUID_INDEX][0].Y = float64(WeiToMemo(s.liquid).Uint64())
 
 	// 奖励数据
 	pts[REWARD_INDEX][0].X = 0
@@ -69,11 +224,7 @@ func EcoModelSimulate(config *EconomicsConfig) []plotter.XYs {
 
 	// 质押数据
 	pts[PLEDGE_INDEX][0].X = 0
-	pts[PLEDGE_INDEX][0].Y = float64(WeiToMemo(state.TotalPledge, config.Decimals).Uint64())
-
-	// 支付数据
-	pts[PAY_INDEX][0].X = 0
-	pts[PAY_INDEX][0].Y = 0
+	pts[PLEDGE_INDEX][0].Y = 0
 
 	// 已支付数据
 	pts[PAID_INDEX][0].X = 0
@@ -83,253 +234,29 @@ func EcoModelSimulate(config *EconomicsConfig) []plotter.XYs {
 	pts[SIZE_INDEX][0].X = 0
 	pts[SIZE_INDEX][0].Y = 0
 
-	// 将每天所有的订单抽象成一个订单
-	// 第一天的初始订单
-	order := &Order{
-		Size:  config.SizeSimulate(state, BigZero, 0, config, nil),
-		Price: config.PriceSimulate(state, BigZero, 0, config, nil),
-		Dur:   config.DurationSimulate(state, BigZero, 0, config, nil),
-	}
-
-	order.NewProvider, state.ProviderPledge = config.ProviderSimulate(state, BigZero, 0, config, nil)
-
 	// 开始模拟每天的订单
-	for i := 1; i < int(config.TotalDuration); i++ {
-		// 横坐标为开始的第多少天
-		for j := 0; j < len(pts); j++ {
-			pts[j][i].X = float64(i)
-		}
+	for i := uint64(0); i < uint64(s.cfg.TotalDuration); i++ {
+		s.day = i
 
-		// 订单的起始时间与结束时间
-		start := int64(i)
-		// 这一天没有新订单
-		if order.Size.Cmp(BigZero) > 0 {
-			end := start + order.Dur
+		s.updateGroup()
+		s.updateOrder()
+		s.updateReward()
+		s.updateIncome()
 
-			// 该订单的 spacePrice
-			spacePrice := new(big.Int).Mul(order.Price, order.Size)
-			// 将 sub spacePrice and size
-			subSpacePrice, ok := state.SubSpacePriceMap[end]
-			if ok {
-				subSpacePrice.Add(subSpacePrice, spacePrice)
-			} else {
-				state.SubSpacePriceMap[end] = spacePrice
-			}
+		s.checkMint()
+		s.updatePledge()
 
-			subSize, ok := state.SubSizeMap[end]
-			if ok {
-				subSize.Add(subSize, order.Size)
-			} else {
-				state.SubSizeMap[end] = new(big.Int).Set(order.Size)
-			}
+		dp := new(big.Int).Mul(s.profit, big.NewInt(10000))
+		dp.Div(dp, s.pledge)
 
-			// 将订单的效果反应到全局状态中去
-			state.TotalSize.Add(state.TotalSize, order.Size)
-			state.TotalSpacePrice.Add(state.TotalSpacePrice, spacePrice)
-
-			// 计算订单的数额
-			spacetime := new(big.Int).Set(order.Size)
-			spacetime.Mul(spacetime, big.NewInt(order.Dur))
-			pay := new(big.Int).Mul(spacetime, order.Price)
-
-			// 修改状态，pay代币暂时退出流通
-			state.TotalLiquid.Sub(state.TotalLiquid, pay)
-			state.TotalPay.Add(state.TotalPay, pay)
-		}
-
-		// 减去以前的订单数据
-		sp, ok := state.SubSpacePriceMap[start]
-		if ok {
-			state.TotalSpacePrice.Sub(state.TotalSpacePrice, sp)
-			delete(state.SubSpacePriceMap, start)
-		}
-
-		sSize, ok := state.SubSizeMap[start]
-		if ok {
-			state.TotalSize.Sub(state.TotalSize, sSize)
-			delete(state.SubSizeMap, start)
-		}
-
-		timeNow := start
-		dur := big.NewInt(int64(timeNow - state.LastMint))
-		paid := new(big.Int).Mul(state.TotalSpacePrice, dur)
-
-		// 计算到目前为止已支付的
-		state.TotalPaid.Add(state.TotalPaid, paid)
-		// 已支付的可以继续流动
-		state.TotalLiquid.Add(state.TotalLiquid, paid)
-		// 计算上次增发到目前为止的累积时空值
-		state.TotalSpaceTime.Add(state.TotalSpaceTime, new(big.Int).Mul(state.TotalSize, dur))
-
-		tempEsize := new(big.Int).Set(config.MintLevel[state.MintLevel].Size)
-
-		// 选择当前的MintLevel
-		for j := state.MintLevel + 1; j < len(config.MintLevel); j++ {
-			esize := new(big.Int).Set(config.MintLevel[j].Size)
-
-			if esize.Cmp(state.TotalSize) < 0 {
-				esize.Set(state.TotalSize)
-			}
-
-			tempEsize.Set(esize)
-
-			// 切换到新的增发阶段
-			if new(big.Int).Div(state.TotalSpaceTime, esize).Cmp(big.NewInt(config.MintLevel[j].Duration)) >= 0 {
-				fmt.Println("----------Change MintLevel-------------")
-				fmt.Println("Day:", i, "Change MintLevel to", j, "Total Size:", state.TotalSize)
-				fmt.Println("spacetime:", state.TotalSpaceTime.String(), "esize:", FormatGBytes(tempEsize.Int64()))
-				fmt.Println("Calculate Dur:", new(big.Int).Div(state.TotalSpaceTime, tempEsize), "expect dur:", dur)
-				state.MintLevel = j
-				factor := new(big.Int).Exp(BigTwo, big.NewInt(state.HalfFactor), BigZero)
-				state.Ratio.Div(config.MintLevel[state.MintLevel].Ratio, factor)
-				// 如果增发比例已经小于最小比例，则设为最小比例
-				if state.Ratio.Cmp(config.MinimumRation) < 0 {
-					state.Ratio.Set(config.MinimumRation)
-				}
-			} else {
-				break
-			}
-		}
-
-		reward := big.NewInt(0)
-
-		// 当该订单处理完，关闭enableMaxSize
-		// 或者当前Size要大于历史上的最大Size时，才会增发
-		if state.TotalSize.Cmp(state.MaxSize) > 0 || !config.EnableMaxSize {
-			// 更新 MaxSize
-			state.MaxSize.Set(state.TotalSize)
-			// 计算当前的奖励
-			reward = new(big.Int).Mul(paid, state.Ratio)
-			// 将奖励除以基数
-			reward.Div(reward, OneBillion)
-			// 计算临时的累积奖励
-			tempReward := new(big.Int).Add(reward, state.TotalReward)
-
-			// 处理边界条件，如果奖励已经超过目标，超出部分需要除2
-			isBig := tempReward.Cmp(state.TargetReward)
-			// 比例达到最小增发比例时不再减半
-			if isBig > 0 && state.Ratio.Cmp(config.MinimumRation) > 0 {
-				// 先增发目标内的代币数
-				leftReward := new(big.Int).Sub(state.TargetReward, state.TotalReward)
-				overflowReward := new(big.Int).Sub(tempReward, state.TargetReward)
-				reward.Add(leftReward, overflowReward.Div(overflowReward, BigTwo))
-
-				// 增发计算后奖励
-				state.TotalReward.Add(state.TotalReward, reward)
-				state.TotalSupply.Add(state.TotalSupply, reward)
-				state.TotalLiquid.Add(state.TotalLiquid, reward)
-
-				// 更换目标
-				state.HalfFactor += 1
-
-				factor := new(big.Int).Exp(BigTwo, big.NewInt(state.HalfFactor), BigZero)
-				state.Ratio.Div(config.MintLevel[state.MintLevel].Ratio, factor)
-
-				// 如果增发比例已经小于最小比例，则设为最小比例
-				if state.Ratio.Cmp(config.MinimumRation) < 0 {
-					state.Ratio.Set(config.MinimumRation)
-				} else {
-					state.PeriodReward.Div(state.PeriodReward, BigTwo)
-					state.TargetReward.Add(state.TargetReward, state.PeriodReward)
-				}
-				fmt.Println("----------Change HalfFactor-------------")
-				fmt.Println("Day:", i, "Change HalfFactor to", state.HalfFactor, "reward:", WeiToMemo(reward, config.Decimals), "MintLevel:", state.MintLevel)
-				fmt.Println("spacetime:", state.TotalSpaceTime.String(), "esize:", FormatGBytes(tempEsize.Int64()))
-				fmt.Println("Calculate Dur:", float64(new(big.Int).Div(state.TotalSpaceTime, tempEsize).Uint64()))
-				fmt.Println("TotalPay:", WeiToMemo(state.TotalPay, config.Decimals), "TotalPaid:", WeiToMemo(state.TotalPaid, config.Decimals), "TotalReward", WeiToMemo(state.TotalReward, config.Decimals))
-				fmt.Println("TotalLiquid:", WeiToMemo(state.TotalLiquid, config.Decimals),
-					"TotalSupply:", WeiToMemo(state.TotalSupply, config.Decimals),
-					"Percent:", float64(WeiToMemo(state.TotalLiquid, config.Decimals).Int64())/float64(WeiToMemo(state.TotalSupply, config.Decimals).Int64()))
-				fmt.Println("TotalSize:", FormatGBytes(state.TotalSize.Int64()))
-				fmt.Println("OrderSize:", FormatGBytes(order.Size.Int64()), "OrderPrice", order.Price)
-				fmt.Println("Issurance ratio:", float64(state.Ratio.Int64())/float64(OneBillion.Int64()), "Providers Count", state.ProviderCount)
-				fmt.Println("Total issue times:", float64(WeiToMemo(state.TotalSupply, config.Decimals).Int64())/float64(WeiToMemo(config.InitialSupply, config.Decimals).Int64()))
-				fmt.Println("TotalPledge:", WeiToMemo(state.TotalPledge, config.Decimals))
-				// 刚好达到目标
-			} else {
-				// 直接增发所有奖励
-				state.TotalReward.Add(state.TotalReward, reward)
-				state.TotalSupply.Add(state.TotalSupply, reward)
-				state.TotalLiquid.Add(state.TotalLiquid, reward)
-				// 如果已达到目标，接下来的都会受减半因子影响
-				// 比例达到最小增发比例时不再减半
-				if isBig == 0 && state.Ratio.Cmp(config.MinimumRation) > 0 {
-					factor := new(big.Int).Exp(BigTwo, big.NewInt(state.HalfFactor), BigZero)
-					state.Ratio.Div(config.MintLevel[state.MintLevel].Ratio, factor)
-
-					// 如果增发比例已经小于最小比例，则设为最小比例
-					if state.Ratio.Cmp(config.MinimumRation) < 0 {
-						state.Ratio.Set(config.MinimumRation)
-					} else {
-						state.PeriodReward.Div(state.PeriodReward, BigTwo)
-						state.TargetReward.Add(state.TargetReward, state.PeriodReward)
-					}
-					fmt.Println("-----------Change HalfFactor------------")
-					fmt.Println("Day:", i, "Change HalfFactor to", state.HalfFactor, "reward:", WeiToMemo(reward, config.Decimals), "MintLevel:", state.MintLevel)
-					fmt.Println("spacetime:", state.TotalSpaceTime.String(), "esize:", FormatGBytes(tempEsize.Int64()))
-					fmt.Println("Calculate Dur:", float64(new(big.Int).Div(state.TotalSpaceTime, tempEsize).Uint64()))
-					fmt.Println("TotalPay:", WeiToMemo(state.TotalPay, config.Decimals), "TotalPaid:", WeiToMemo(state.TotalPaid, config.Decimals), "TotalReward", WeiToMemo(state.TotalReward, config.Decimals))
-					fmt.Println("TotalLiquid:", WeiToMemo(state.TotalLiquid, config.Decimals),
-						"TotalSupply:", WeiToMemo(state.TotalSupply, config.Decimals),
-						"Percent:", float64(WeiToMemo(state.TotalLiquid, config.Decimals).Int64())/float64(WeiToMemo(state.TotalSupply, config.Decimals).Int64()))
-					fmt.Println("TotalSize:", FormatGBytes(state.TotalSize.Int64()))
-					fmt.Println("OrderSize:", FormatGBytes(order.Size.Int64()), "OrderPrice", order.Price)
-					fmt.Println("TargetReward:", WeiToMemo(state.TargetReward, config.Decimals), "PeriodRewad:", WeiToMemo(state.PeriodReward, config.Decimals))
-					fmt.Println("Issurance ratio:", float64(state.Ratio.Int64())/float64(OneBillion.Int64()), "Providers Count", state.ProviderCount)
-					fmt.Println("Total issue times:", float64(WeiToMemo(state.TotalSupply, config.Decimals).Int64())/float64(WeiToMemo(config.InitialSupply, config.Decimals).Int64()))
-					fmt.Println("TotalPledge:", WeiToMemo(state.TotalPledge, config.Decimals))
-				}
-			}
-		}
+		fmt.Println(s.day, s.groups, ",liquid:", WeiToMemo(s.liquid), ",pledge:", WeiToMemo(s.pledge), ",reward:", WeiToMemo(s.reward), ",daily: ", dp, ",paid:", WeiToMemo(s.paid), ",income:", WeiToMemo(s.pincome), ",kincome:", WeiToMemo(s.kincome), ",size:", new(big.Int).Div(s.size, big.NewInt(TiB)))
 
 		// 填充纵轴数据
-		pts[SUPPLY_INDEX][i].Y = float64(WeiToMemo(state.TotalSupply, config.Decimals).Int64())
-		pts[LIQUID_INDEX][i].Y = float64(WeiToMemo(state.TotalLiquid, config.Decimals).Int64())
-		pts[REWARD_INDEX][i].Y = float64(WeiToMemo(state.TotalReward, config.Decimals).Int64())
-		pts[PLEDGE_INDEX][i].Y = float64(WeiToMemo(state.TotalPledge, config.Decimals).Uint64())
-		pts[PAY_INDEX][i].Y = float64(WeiToMemo(state.TotalPay, config.Decimals).Uint64())
-		pts[PAID_INDEX][i].Y = float64(WeiToMemo(state.TotalPaid, config.Decimals).Uint64())
-		pts[SIZE_INDEX][i].Y = float64(state.TotalSize.Int64())
-
-		// 模拟下一次订单变化
-
-		// 新增Provider数
-		order.NewProvider, state.ProviderPledge = config.ProviderSimulate(state, reward, int64(i), config, order)
-
-		providerPledge := new(big.Int).Mul(big.NewInt(order.NewProvider), state.ProviderPledge)
-		state.TotalPledge.Add(
-			state.TotalPledge,
-			providerPledge,
-		)
-		state.ProviderCount += order.NewProvider
-		state.TotalLiquid.Sub(state.TotalLiquid, providerPledge)
-
-		// 下一天的订单空间数
-		order.Size = config.SizeSimulate(state, reward, int64(i), config, order)
-		// 下一天的订单价格
-		order.Price = config.PriceSimulate(state, reward, int64(i), config, order)
-		// 下一天的订单时长
-		order.Dur = config.DurationSimulate(state, reward, int64(i), config, order)
-
-		// 打印一些时间点的数据
-		if i%200 >= 0 && i%200 < 3 || int64(i) >= config.TotalDuration-5 {
-			fmt.Println("--------Specific---------------")
-			fmt.Println("Day:", i, "reward:", WeiToMemo(reward, config.Decimals), "MintLevel:", state.MintLevel, "HalfFactor", state.HalfFactor)
-			fmt.Println("spacetime:", state.TotalSpaceTime.String(), "esize:", FormatGBytes(tempEsize.Int64()))
-			fmt.Println("Calculate Dur:", float64(new(big.Int).Div(state.TotalSpaceTime, tempEsize).Uint64()))
-			fmt.Println("TotalPay:", WeiToMemo(state.TotalPay, config.Decimals), "TotalPaid:", WeiToMemo(state.TotalPaid, config.Decimals), "TotalReward", WeiToMemo(state.TotalReward, config.Decimals))
-			fmt.Println("TotalLiquid:", WeiToMemo(state.TotalLiquid, config.Decimals),
-				"TotalSupply:", WeiToMemo(state.TotalSupply, config.Decimals),
-				"Percent:", float64(WeiToMemo(state.TotalLiquid, config.Decimals).Int64())/float64(WeiToMemo(state.TotalSupply, config.Decimals).Int64()))
-			fmt.Println("TotalSize:", FormatGBytes(state.TotalSize.Int64()))
-			fmt.Println("OrderSize:", FormatGBytes(order.Size.Int64()), "OrderPrice", order.Price)
-			fmt.Println("TargetReward:", WeiToMemo(state.TargetReward, config.Decimals), "PeriodRewad:", WeiToMemo(state.PeriodReward, config.Decimals))
-			fmt.Println("Issurance ratio:", float64(state.Ratio.Int64())/float64(OneBillion.Int64()), "Providers Count", state.ProviderCount)
-			fmt.Println("Total issue times:", float64(WeiToMemo(state.TotalSupply, config.Decimals).Int64())/float64(WeiToMemo(config.InitialSupply, config.Decimals).Int64()))
-			fmt.Println("TotalPledge:", WeiToMemo(state.TotalPledge, config.Decimals))
-		}
-
-		state.LastMint = start
+		pts[SUPPLY_INDEX][i].Y = float64(WeiToMemo(s.cfg.TotalSupply).Int64())
+		pts[REWARD_INDEX][i].Y = float64(WeiToMemo(s.reward).Int64())
+		pts[PLEDGE_INDEX][i].Y = float64(WeiToMemo(s.pledge).Uint64())
+		pts[PAID_INDEX][i].Y = float64(WeiToMemo(s.paid).Uint64())
+		pts[SIZE_INDEX][i].Y = float64(s.size.Int64())
 	}
 
 	return pts
