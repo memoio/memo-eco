@@ -86,7 +86,7 @@ func (s *MemoState) updateOrder() {
 		}
 
 		for i := uint64(0); i < gs.PCnt; i++ {
-			durDay := uint64(MinDuration + r.Int63n(MaxDuration-MinDuration))
+			durDay := uint64(MinDuration + r.Int63n(int64(s.cfg.Order.DefaultDuration)-MinDuration))
 			//durDay := uint64(s.cfg.Order.DefaultDuration)
 			size := big.NewInt(s.cfg.Order.DefaultSize/10 + r.Int63n(10*s.cfg.Order.DefaultSize-s.cfg.Order.DefaultSize/10))
 			price := int64(s.cfg.Order.DefaultPrice)

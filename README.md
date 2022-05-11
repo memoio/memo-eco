@@ -194,7 +194,7 @@ type RoleConfig struct {
 
 type OrderConfig struct {
 	DefaultSize     int64  // 订单大小，默认8GB
-	DefaultDuration uint64 // 订单长度，默认365天
+	DefaultDuration uint64 // 订单长度，默认365天，大于100天
 	DefaultPrice    uint64 // 订单每GB价格，默认1073741824
 
 	LinearRate int64 // 线性释放率， 默认4，即4%，支付给keeper
