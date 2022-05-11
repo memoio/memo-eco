@@ -3,8 +3,18 @@ package model
 import "math/big"
 
 type NodeState struct {
-	Start uint64
+	Born  uint64
+	Group uint64
 	Size  uint64
+}
+
+type GroupState struct {
+	Born       uint64
+	Index      uint64
+	KCnt       uint64
+	PCnt       uint64
+	Size       *big.Int
+	subSizeMap map[uint64]*big.Int
 }
 
 type MemoState struct {
@@ -25,6 +35,7 @@ type MemoState struct {
 	mint        *MintInfo
 	spaceTime   *big.Int
 	spacePrice  *big.Int
+	accSize     *big.Int
 	size        *big.Int
 	reward      *big.Int            // reward to pledge pool
 	subPriceMap map[uint64]*big.Int // 记录过期价格，key为天数
@@ -32,14 +43,16 @@ type MemoState struct {
 
 	fixPledge     *big.Int
 	groups        uint64
+	gState        map[uint64]*GroupState
 	keeperCount   uint64 // 系统中Keeper的数量
 	providerCount uint64 // 系统中Provider的数量
+	pState        map[uint64]*NodeState
 }
 
-func NewMemoState(config *Config) *MemoState {
+func NewMemoState(cfg *Config) *MemoState {
 	s := &MemoState{
-		cfg:       config,
-		liquid:    new(big.Int).Set(config.InitSupply),
+		cfg:       cfg,
+		liquid:    new(big.Int).Mul(big.NewInt(cfg.Token.InitSupply), big.NewInt(Memo)),
 		paid:      big.NewInt(0),
 		pledge:    big.NewInt(0),
 		profit:    big.NewInt(0),
@@ -49,16 +62,18 @@ func NewMemoState(config *Config) *MemoState {
 		kincome:    big.NewInt(0),
 		pincome:    big.NewInt(0),
 
-		mint:        InitMint(config.RewardTarget),
+		mint:        InitMint(cfg.Mint),
 		spaceTime:   big.NewInt(0),
 		spacePrice:  big.NewInt(0),
-		size:        big.NewInt(0),
+		accSize:     big.NewInt(0), // acc size
+		size:        big.NewInt(0), // current size
 		reward:      big.NewInt(0),
 		subPriceMap: make(map[uint64]*big.Int),
 		subSizeMap:  make(map[uint64]*big.Int),
 
 		keeperCount:   0,
 		providerCount: 0,
+		gState:        make(map[uint64]*GroupState),
 	}
 
 	return s
