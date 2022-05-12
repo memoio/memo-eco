@@ -3,7 +3,6 @@ package model
 import (
 	"fmt"
 	"math/big"
-	"math/rand"
 	"time"
 
 	"gonum.org/v1/plot/plotter"
@@ -78,7 +77,6 @@ func (s *MemoState) updateGroup() {
 // each provider has one order
 // todo: size distribute, duration distribute
 func (s *MemoState) updateOrder() {
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	for j := uint64(1); j <= s.groups; j++ {
 		gs, ok := s.gState[j]
 		if !ok {
@@ -86,9 +84,9 @@ func (s *MemoState) updateOrder() {
 		}
 
 		for i := uint64(0); i < gs.PCnt; i++ {
-			durDay := uint64(MinDuration + r.Int63n(int64(s.cfg.Order.DefaultDuration)-MinDuration))
-			//durDay := uint64(s.cfg.Order.DefaultDuration)
-			size := big.NewInt(s.cfg.Order.DefaultSize/10 + r.Int63n(10*s.cfg.Order.DefaultSize-s.cfg.Order.DefaultSize/10))
+
+			durDay := uint64(MinDuration + s.r.Int63n(2*int64(s.cfg.Order.DefaultDuration)-MinDuration))
+			size := big.NewInt(s.cfg.Order.DefaultSize/10 + s.r.Int63n(10*s.cfg.Order.DefaultSize-s.cfg.Order.DefaultSize/10))
 			price := int64(s.cfg.Order.DefaultPrice)
 
 			// add to group

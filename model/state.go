@@ -1,6 +1,10 @@
 package model
 
-import "math/big"
+import (
+	"math/big"
+	"math/rand"
+	"time"
+)
 
 type NodeState struct {
 	Born  uint64
@@ -18,6 +22,7 @@ type GroupState struct {
 }
 
 type MemoState struct {
+	r   *rand.Rand
 	day uint64
 
 	cfg *Config
@@ -51,6 +56,7 @@ type MemoState struct {
 
 func NewMemoState(cfg *Config) *MemoState {
 	s := &MemoState{
+		r:         rand.New(rand.NewSource(time.Now().UnixNano())),
 		cfg:       cfg,
 		liquid:    new(big.Int).Mul(big.NewInt(cfg.Token.InitSupply), big.NewInt(Memo)),
 		paid:      big.NewInt(0),
