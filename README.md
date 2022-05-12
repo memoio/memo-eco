@@ -171,8 +171,12 @@ Memo基金会有权发起关于系统治理的提案，然后由社区决定该�
 
 ```go
 type TokenConfig struct {
-	TotalSupply int64 // 创世代币数量
-	InitSupply  int64 // 初始发行量
+	TotalSupply int64  // 创世代币数量，默认600_000_000 memo
+	InitSupply  int64  // 初始发行量, 默认100_000_000
+	LockSupply   int64 // 锁定量,默认100_000_000
+	LinearSupply int64 // 线性释放量，默认100_000_000
+	LockDay      int64 // 锁定释放时间，默认540天，即540天后才能使用
+	LinearDay    int64 // 线性释放周期，默认180天，每天释放1/180
 }
 
 type MintConfig struct {
@@ -180,6 +184,11 @@ type MintConfig struct {
 	RatioInit          int64 // 奖励比例， 默认 2
 	RatioDecimal       int64 
 	RatioAlter         int64 // 奖励比例调整参数， 默认150；
+}
+
+type PledgeConfig struct {
+	InRatio  int64   // 30日年化收益超过此值，质押会增加， 默认100%
+	OutRatio int64   // 30日年化收益小于此值，质押会减少， 默认25%
 }
 
 type RoleConfig struct {

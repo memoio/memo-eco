@@ -27,7 +27,8 @@ type MemoState struct {
 
 	cfg *Config
 
-	liquid *big.Int // 总当前可流动代币数
+	liquid       *big.Int // 总当前可流动代币数
+	unlockPerDay *big.Int
 
 	paid   *big.Int // pay for order
 	pledge *big.Int
@@ -55,13 +56,16 @@ type MemoState struct {
 }
 
 func NewMemoState(cfg *Config) *MemoState {
+	upd := new(big.Int).Mul(big.NewInt(cfg.Token.LinearSupply), big.NewInt(Memo))
+	upd.Div(upd, big.NewInt(cfg.Token.LinearDay))
 	s := &MemoState{
-		r:         rand.New(rand.NewSource(time.Now().UnixNano())),
-		cfg:       cfg,
-		liquid:    new(big.Int).Mul(big.NewInt(cfg.Token.InitSupply), big.NewInt(Memo)),
-		paid:      big.NewInt(0),
-		pledge:    big.NewInt(0),
-		fixPledge: big.NewInt(0),
+		r:            rand.New(rand.NewSource(time.Now().UnixNano())),
+		cfg:          cfg,
+		liquid:       new(big.Int).Mul(big.NewInt(cfg.Token.InitSupply), big.NewInt(Memo)),
+		unlockPerDay: upd,
+		paid:         big.NewInt(0),
+		pledge:       big.NewInt(0),
+		fixPledge:    big.NewInt(0),
 
 		foundation: big.NewInt(0),
 		kincome:    big.NewInt(0),

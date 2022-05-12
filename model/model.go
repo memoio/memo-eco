@@ -222,7 +222,8 @@ func (s *MemoState) updatePledge() {
 		profit.Div(profit, big.NewInt(cnt))
 	}
 
-	profit.Mul(profit, big.NewInt(10000))
+	// 年化收益
+	profit.Mul(profit, big.NewInt(36500))
 
 	// profit > 1% per day, pledge more
 	if new(big.Int).Div(profit, pt).Cmp(big.NewInt(s.cfg.Pledge.InRatio)) > 0 {
@@ -287,6 +288,17 @@ func (s *MemoState) checkMint() {
 	s.mint.Check(nsize, dur)
 }
 
+func (s *MemoState) updateLiquid() {
+	if s.day < uint64(s.cfg.Token.LinearDay) {
+		s.liquid.Add(s.liquid, s.unlockPerDay)
+	}
+
+	if s.day == uint64(s.cfg.Token.LockDay) {
+		uv := new(big.Int).Mul(big.NewInt(s.cfg.Token.LockSupply), big.NewInt(Memo))
+		s.liquid.Add(s.liquid, uv)
+	}
+}
+
 // 生成每天的模拟数据
 func Simulate(cfg *Config) []plotter.XYs {
 	ss := time.Now()
@@ -313,6 +325,8 @@ func Simulate(cfg *Config) []plotter.XYs {
 
 		s.checkMint()
 		s.updatePledge()
+
+		s.updateLiquid()
 
 		dp := new(big.Int).Mul(s.profits[s.day], big.NewInt(10000))
 		dp.Div(dp, s.pledge)

@@ -8,8 +8,12 @@ const (
 )
 
 type TokenConfig struct {
-	TotalSupply int64 // 创世代币数量
-	InitSupply  int64
+	TotalSupply  int64 // 创世代币数量
+	InitSupply   int64 // unlock imediately
+	LockSupply   int64 // unlock at some day
+	LockDay      int64 // lock days
+	LinearSupply int64 // unlock linearly
+	LinearDay    int64 // unlock rate
 }
 
 type PledgeConfig struct {
@@ -63,8 +67,12 @@ func DefaultConfig() *Config {
 			Detail:   true,
 		},
 		Token: TokenConfig{
-			TotalSupply: 600_000_000, // issue price: 1 $/Memo
-			InitSupply:  300_000_000, // all is available or unlock linearly
+			TotalSupply:  600_000_000, // issue price: 1 $/Memo
+			InitSupply:   100_000_000, // all is available or unlock linearly
+			LockSupply:   100_000_000,
+			LinearSupply: 100_000_000, // unlock linearly
+			LockDay:      540,         // lock 540 day(18 month)
+			LinearDay:    180,         // unlock in 180 day
 		},
 		Mint: MintConfig{
 			RewardTarget: 300_000_000,
