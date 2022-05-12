@@ -125,6 +125,7 @@ func (s *MemoState) updateOrder() {
 			s.spaceTime.Add(s.spaceTime, st)
 
 			pay := new(big.Int).Mul(sprice, dur)
+			s.fs.Add(s.fs, pay)
 
 			// 1% for tax
 			pay.Div(pay, big.NewInt(100))
@@ -171,6 +172,8 @@ func (s *MemoState) updateIncome() {
 	// update income for provider and keeper
 	income := new(big.Int).Mul(s.spacePrice, big.NewInt(Day))
 	s.pincome.Add(s.pincome, income)
+	s.fs.Sub(s.fs, income)
+
 	income.Mul(income, big.NewInt(s.cfg.Order.LinearRate))
 	income.Div(income, big.NewInt(100))
 	s.kincome.Add(s.kincome, income)
@@ -328,13 +331,28 @@ func Simulate(cfg *Config) []plotter.XYs {
 
 		s.updateLiquid()
 
-		dp := new(big.Int).Mul(s.profits[s.day], big.NewInt(10000))
-		dp.Div(dp, s.pledge)
+		cnt := int64(0)
+		profit := new(big.Int)
+		for i := s.day; i > 0; i-- {
+			profit.Add(profit, s.profits[i])
+			cnt++
+			if cnt >= 30 {
+				break
+			}
+		}
+
+		if cnt > 0 {
+			profit.Div(profit, big.NewInt(cnt))
+		}
+
+		// 年化收益
+		profit.Mul(profit, big.NewInt(36500))
+		profit.Div(profit, s.pledge)
 
 		nt.Day()
 
 		if s.cfg.Simu.Detail {
-			fmt.Println(s.day, s.groups, s.providerCount, ",liquid:", WeiToMemo(s.liquid), ",pledge:", WeiToMemo(s.pledge), ",reward:", WeiToMemo(s.reward), ",daily: ", dp, ",paid:", WeiToMemo(s.paid), ",income:", WeiToMemo(s.pincome), ",kincome:", WeiToMemo(s.kincome), ",size:", new(big.Int).Div(s.size, big.NewInt(TiB)), new(big.Int).Div(s.accSize, big.NewInt(TiB)), time.Since(nt))
+			fmt.Println(s.day, s.groups, s.providerCount, ",liquid:", WeiToMemo(s.liquid), ",pledge:", WeiToMemo(s.pledge), ",reward:", WeiToMemo(s.reward), ",yearly: ", profit, ",paid:", WeiToMemo(s.paid), ",fs:", WeiToMemo(s.fs), ",income:", WeiToMemo(s.pincome), ",kincome:", WeiToMemo(s.kincome), ",size:", new(big.Int).Div(s.size, big.NewInt(TiB)), new(big.Int).Div(s.accSize, big.NewInt(TiB)), time.Since(nt))
 		}
 
 		// 填充纵轴数据

@@ -31,6 +31,7 @@ type MemoState struct {
 	unlockPerDay *big.Int
 
 	paid   *big.Int // pay for order
+	fs     *big.Int
 	pledge *big.Int
 
 	foundation *big.Int
@@ -64,6 +65,7 @@ func NewMemoState(cfg *Config) *MemoState {
 		liquid:       new(big.Int).Mul(big.NewInt(cfg.Token.InitSupply), big.NewInt(Memo)),
 		unlockPerDay: upd,
 		paid:         big.NewInt(0),
+		fs:           big.NewInt(0),
 		pledge:       big.NewInt(0),
 		fixPledge:    big.NewInt(0),
 
