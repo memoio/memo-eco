@@ -26,7 +26,6 @@ type MemoState struct {
 
 	paid   *big.Int // pay for order
 	pledge *big.Int
-	profit *big.Int
 
 	foundation *big.Int
 	kincome    *big.Int
@@ -37,7 +36,8 @@ type MemoState struct {
 	spacePrice  *big.Int
 	accSize     *big.Int
 	size        *big.Int
-	reward      *big.Int            // reward to pledge pool
+	reward      *big.Int // reward to pledge pool
+	profits     []*big.Int
 	subPriceMap map[uint64]*big.Int // 记录过期价格，key为天数
 	subSizeMap  map[uint64]*big.Int // 记录过期空间，key为天数
 
@@ -55,7 +55,6 @@ func NewMemoState(cfg *Config) *MemoState {
 		liquid:    new(big.Int).Mul(big.NewInt(cfg.Token.InitSupply), big.NewInt(Memo)),
 		paid:      big.NewInt(0),
 		pledge:    big.NewInt(0),
-		profit:    big.NewInt(0),
 		fixPledge: big.NewInt(0),
 
 		foundation: big.NewInt(0),
@@ -70,6 +69,8 @@ func NewMemoState(cfg *Config) *MemoState {
 		reward:      big.NewInt(0),
 		subPriceMap: make(map[uint64]*big.Int),
 		subSizeMap:  make(map[uint64]*big.Int),
+
+		profits: make([]*big.Int, cfg.Simu.Duration),
 
 		keeperCount:   0,
 		providerCount: 0,

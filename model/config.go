@@ -12,6 +12,11 @@ type TokenConfig struct {
 	InitSupply  int64
 }
 
+type PledgeConfig struct {
+	InRatio  int64
+	OutRatio int64
+}
+
 type MintConfig struct {
 	RewardTarget int64
 	RatioInit    int64
@@ -43,17 +48,19 @@ type SimuConfig struct {
 }
 
 type Config struct {
-	Simu  SimuConfig
-	Token TokenConfig
-	Mint  MintConfig
-	Role  RoleConfig
-	Order OrderConfig
+	Simu   SimuConfig
+	Token  TokenConfig
+	Mint   MintConfig
+	Role   RoleConfig
+	Order  OrderConfig
+	Pledge PledgeConfig
 }
 
 func DefaultConfig() *Config {
 	return &Config{
 		Simu: SimuConfig{
 			Duration: 1000,
+			Detail:   true,
 		},
 		Token: TokenConfig{
 			TotalSupply: 600_000_000, // issue price: 1 $/Memo
@@ -81,6 +88,10 @@ func DefaultConfig() *Config {
 			LinearRate: 3,
 			EndRate:    1,
 			TaxRate:    1,
+		},
+		Pledge: PledgeConfig{
+			InRatio:  100,
+			OutRatio: 25,
 		},
 	}
 }

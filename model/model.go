@@ -164,9 +164,9 @@ func (s *MemoState) updateReward() {
 	s.mint.Reward.Sub(s.mint.Reward, reward)
 	s.mint.Residual.Sub(s.mint.Residual, reward)
 
-	s.profit.Set(reward)
-
 	s.reward.Add(s.reward, reward)
+
+	s.profits[s.day] = new(big.Int).Set(reward)
 }
 
 func (s *MemoState) updateIncome() {
@@ -204,19 +204,34 @@ func (s *MemoState) updateIncome() {
 
 // depend on profit
 func (s *MemoState) updatePledge() {
-	pt := WeiToMemo(s.pledge)
-
-	if pt.BitLen() == 0 {
+	if s.pledge.BitLen() == 0 {
 		return
 	}
 
+	profit := new(big.Int)
+	pt := new(big.Int).Set(s.pledge)
+
+	cnt := int64(0)
+	for i := s.day; i > 0; i-- {
+		profit.Add(profit, s.profits[i])
+		cnt++
+		if cnt >= 30 {
+			break
+		}
+	}
+
+	if cnt > 0 {
+		profit.Div(profit, big.NewInt(cnt))
+	}
+
+	profit.Mul(profit, big.NewInt(10000))
+
 	// profit > 1% per day, pledge more
-	if new(big.Int).Div(s.profit, pt).Cmp(big.NewInt(Memo/100)) > 0 {
+	if new(big.Int).Div(profit, pt).Cmp(big.NewInt(s.cfg.Pledge.InRatio)) > 0 {
 		for {
-			pt.Mul(pt, big.NewInt(11))
-			pt.Div(pt, big.NewInt(10))
-			if new(big.Int).Div(s.profit, pt).Cmp(big.NewInt(Memo/100)) < 0 {
-				pt.Mul(pt, big.NewInt(Memo))
+			pt.Mul(pt, big.NewInt(101))
+			pt.Div(pt, big.NewInt(100))
+			if new(big.Int).Div(profit, pt).Cmp(big.NewInt(s.cfg.Pledge.InRatio)) < 0 {
 				if pt.Cmp(s.pledge) > 0 {
 					// pledge more
 					pt.Sub(pt, s.pledge)
@@ -229,19 +244,19 @@ func (s *MemoState) updatePledge() {
 				break
 			}
 		}
+
+		return
 	}
 
-	pt = WeiToMemo(s.pledge)
-
 	// profit < 0.25%, withdraw
-	if new(big.Int).Div(s.profit, pt).Cmp(big.NewInt(Memo/400)) < 0 {
+	if new(big.Int).Div(profit, pt).Cmp(big.NewInt(s.cfg.Pledge.OutRatio)) < 0 {
 		for {
-			pt.Mul(pt, big.NewInt(9))
-			pt.Div(pt, big.NewInt(10))
+			pt.Mul(pt, big.NewInt(99))
+			pt.Div(pt, big.NewInt(100))
 			if pt.BitLen() == 0 {
 				return
 			}
-			if new(big.Int).Div(s.profit, pt).Cmp(big.NewInt(Memo/400)) > 0 {
+			if new(big.Int).Div(profit, pt).Cmp(big.NewInt(s.cfg.Pledge.OutRatio)) > 0 {
 				if pt.Cmp(s.pledge) < 0 {
 					// withdraw
 					if pt.Cmp(s.fixPledge) < 0 {
@@ -301,7 +316,7 @@ func Simulate(cfg *Config) []plotter.XYs {
 		s.checkMint()
 		s.updatePledge()
 
-		dp := new(big.Int).Mul(s.profit, big.NewInt(10000))
+		dp := new(big.Int).Mul(s.profits[s.day], big.NewInt(10000))
 		dp.Div(dp, s.pledge)
 
 		nt.Day()
