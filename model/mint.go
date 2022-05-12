@@ -47,8 +47,8 @@ func (m *MintInfo) Check(nsize, dur *big.Int) {
 		stageSize = stageSize.Mul(stageSize, big.NewInt(32))
 	}
 
-	stageRatio.Mul(stageRatio, big.NewInt(m.mc.RatioReduce))
-	stageRatio.Div(stageRatio, big.NewInt(m.mc.RatioReduceDecimal))
+	stageRatio.Mul(stageRatio, big.NewInt(m.mc.RatioAlter))
+	stageRatio.Div(stageRatio, big.NewInt(100))
 
 	stageReward.Mul(stageSize, stageRatio)
 	stageReward.Mul(stageReward, dur)

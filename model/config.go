@@ -13,11 +13,10 @@ type TokenConfig struct {
 }
 
 type MintConfig struct {
-	RewardTarget       int64
-	RatioInit          int64
-	RatioDecimal       int64
-	RatioReduce        int64
-	RatioReduceDecimal int64
+	RewardTarget int64
+	RatioInit    int64
+	RatioDecimal int64
+	RatioAlter   int64
 }
 type RoleConfig struct {
 	KeeperPledge         int64
@@ -61,11 +60,10 @@ func DefaultConfig() *Config {
 			InitSupply:  300_000_000, // all is available or unlock linearly
 		},
 		Mint: MintConfig{
-			RewardTarget:       300_000_000,
-			RatioInit:          1, // per second*byte
-			RatioDecimal:       1_000_000_000,
-			RatioReduce:        150,
-			RatioReduceDecimal: 100,
+			RewardTarget: 300_000_000,
+			RatioInit:    1, // per second*byte
+			RatioDecimal: 1_000_000_000,
+			RatioAlter:   150,
 		},
 		Role: RoleConfig{
 			KeeperPledge:         1_000,   // Memo

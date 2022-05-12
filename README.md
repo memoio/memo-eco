@@ -179,8 +179,7 @@ type MintConfig struct {
 	RewardTarget       int64 // 奖励上限， 默认 600_000_000
 	RatioInit          int64 // 奖励比例， 默认 2
 	RatioDecimal       int64 
-	RatioReduce        int64 // 奖励比例调整参数， 默认150；
-	RatioReduceDecimal int64
+	RatioAlter         int64 // 奖励比例调整参数， 默认150；
 }
 
 type RoleConfig struct {
