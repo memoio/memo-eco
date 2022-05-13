@@ -3,9 +3,10 @@ package model
 import (
 	"fmt"
 	"math/big"
+	"strconv"
 	"time"
 
-	"gonum.org/v1/plot/plotter"
+	"github.com/go-echarts/go-echarts/v2/opts"
 )
 
 const (
@@ -302,17 +303,20 @@ func (s *MemoState) updateLiquid() {
 	}
 }
 
+var PlotX []string
+var PlotData [][]opts.LineData
+
 // 生成每天的模拟数据
-func Simulate(cfg *Config) []plotter.XYs {
+func Simulate(cfg *Config) {
 	ss := time.Now()
 	fmt.Println("============ simulate start ============")
 	s := NewMemoState(cfg)
 
-	// 计算这么多天的增发
-	pts := make([]plotter.XYs, POINTS_COUNT)
+	PlotX = make([]string, cfg.Simu.Duration)
+	PlotData = make([][]opts.LineData, POINTS_COUNT)
 
-	for i := 0; i < len(pts); i++ {
-		pts[i] = make(plotter.XYs, cfg.Simu.Duration)
+	for i := 0; i < POINTS_COUNT; i++ {
+		PlotData[i] = make([]opts.LineData, cfg.Simu.Duration)
 	}
 
 	// 开始模拟每天的订单
@@ -355,18 +359,15 @@ func Simulate(cfg *Config) []plotter.XYs {
 			fmt.Println(s.day, s.groups, s.providerCount, ",liquid:", WeiToMemo(s.liquid), ",pledge:", WeiToMemo(s.pledge), ",reward:", WeiToMemo(s.reward), ",yearly: ", profit, ",paid:", WeiToMemo(s.paid), ",fs:", WeiToMemo(s.fs), ",income:", WeiToMemo(s.pincome), ",kincome:", WeiToMemo(s.kincome), ",size:", new(big.Int).Div(s.size, big.NewInt(TiB)), new(big.Int).Div(s.accSize, big.NewInt(TiB)), time.Since(nt))
 		}
 
-		// 填充纵轴数据
-		for j := 0; j < len(pts); j++ {
-			pts[j][i].X = float64(i)
-		}
+		PlotX[i] = strconv.Itoa(int(i))
 
-		pts[SUPPLY_INDEX][i].Y = float64(s.cfg.Token.TotalSupply)
-		pts[LIQUID_INDEX][i].Y = float64(WeiToMemo(s.liquid).Int64())
-		pts[REWARD_INDEX][i].Y = float64(WeiToMemo(s.reward).Int64())
-		pts[PLEDGE_INDEX][i].Y = float64(WeiToMemo(s.pledge).Uint64())
-		pts[PAID_INDEX][i].Y = float64(WeiToMemo(s.paid).Uint64())
-		pts[SIZE_INDEX][i].Y = float64(new(big.Int).Div(s.size, big.NewInt(GiB)).Int64())
-		pts[ASIZE_INDEX][i].Y = float64(new(big.Int).Div(s.accSize, big.NewInt(GiB)).Int64())
+		PlotData[SUPPLY_INDEX][i].Value = s.cfg.Token.TotalSupply
+		PlotData[LIQUID_INDEX][i].Value = int(WeiToMemo(s.liquid).Int64())
+		PlotData[REWARD_INDEX][i].Value = int(WeiToMemo(s.reward).Int64())
+		PlotData[PLEDGE_INDEX][i].Value = WeiToMemo(s.pledge).Uint64()
+		PlotData[PAID_INDEX][i].Value = WeiToMemo(s.paid).Uint64()
+		PlotData[SIZE_INDEX][i].Value = new(big.Int).Div(s.size, big.NewInt(TiB)).Int64()
+		PlotData[ASIZE_INDEX][i].Value = new(big.Int).Div(s.accSize, big.NewInt(TiB)).Int64()
 	}
 
 	fmt.Println("============ simulate end ============")
@@ -376,6 +377,4 @@ func Simulate(cfg *Config) []plotter.XYs {
 	fmt.Println(s.day, s.groups, s.providerCount, ",liquid:", WeiToMemo(s.liquid), ",pledge:", WeiToMemo(s.pledge), ",reward:", WeiToMemo(s.reward), ",paid:", WeiToMemo(s.paid), ",income:", WeiToMemo(s.pincome), ",kincome:", WeiToMemo(s.kincome), ",size:", new(big.Int).Div(s.size, big.NewInt(TiB)), new(big.Int).Div(s.accSize, big.NewInt(TiB)))
 
 	fmt.Println(s.mint.Ratio, new(big.Int).Div(s.mint.Size, big.NewInt(TiB)), WeiToMemo(s.mint.Reward), WeiToMemo(s.mint.Residual))
-
-	return pts
 }

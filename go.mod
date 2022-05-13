@@ -4,5 +4,6 @@ go 1.16
 
 require (
 	github.com/BurntSushi/toml v1.1.0
-	gonum.org/v1/plot v0.10.0
+	github.com/go-echarts/go-echarts/v2 v2.2.4
+	github.com/mitchellh/go-homedir v1.1.0
 )

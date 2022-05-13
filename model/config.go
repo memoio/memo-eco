@@ -84,7 +84,7 @@ func DefaultConfig() *Config {
 			KeeperPledge:         1_000,   // Memo
 			ProviderPledge:       100,     // Memo
 			KeeperCntPerGroup:    10,      // each group has 10 keeper
-			ProviderCntPerGroup:  5_000,   //assume each provider has 4TB, one group has 5000 provider
+			ProviderCntPerGroup:  5_000,   // assume each provider has 4TB, one group has 5000 provider
 			ProviderStorage:      8 * TiB, // provider storage
 			ProviderCreatePerDay: 150,     // one day
 		},
@@ -98,8 +98,8 @@ func DefaultConfig() *Config {
 			TaxRate:    1,
 		},
 		Pledge: PledgeConfig{
-			InRatio:  100,
-			OutRatio: 25,
+			InRatio:  100, // annual rate > InRatio, pledge more
+			OutRatio: 25,  // annual rate < OutRatio, withdraw
 		},
 	}
 }
