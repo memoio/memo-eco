@@ -1,64 +1,93 @@
 package model
 
-import "math/big"
+import (
+	"math/big"
+	"math/rand"
+	"time"
+)
 
-type Order struct {
-	Size        *big.Int // 每日新增订单空间，单位为 (GB)
-	Price       *big.Int // 订单平均价格，单位为 (GB * Day / 10^-8 Memo)
-	Dur         int64    // 订单平均时长，单位为 (Day)
-	NewProvider int64    // 当天新增Provider数目
+type NodeState struct {
+	Born  uint64
+	Group uint64
+	Size  uint64
+}
+
+type GroupState struct {
+	Born       uint64
+	Index      uint64
+	KCnt       uint64
+	PCnt       uint64
+	Size       *big.Int
+	subSizeMap map[uint64]*big.Int
 }
 
 type MemoState struct {
-	MintLevel       int      // 当前的增发阶段
-	Ratio           *big.Int // 当前的增发比例
-	TotalLiquid     *big.Int // 总当前可流动代币数
-	TotalSupply     *big.Int // 当前代币发行总量 单位为 10^-8 Memo
-	TotalReward     *big.Int // 总增发奖励数
-	TotalPledge     *big.Int // 总质押代币数 单位为 10^-8 Memo
-	TotalSize       *big.Int // 总存储空间 单位为GB
-	TotalSpaceTime  *big.Int // 总存储时空值 单位为 GB * Day
-	TotalSpacePrice *big.Int // 总存储空间价格值 单位为 GB * 10^-8 Memo
-	TotalPay        *big.Int // 总支付代币数 单位为 10^-8 Memo
-	TotalPaid       *big.Int // 总已支付代币数 单位为 10^-8 Memo
-	TargetReward    *big.Int // 当前目标减半的累积奖励金额
-	PeriodReward    *big.Int // 当前阶段的增发总和，增发完则跳到下一个阶段减半
-	MaxSize         *big.Int // 某个时间点的最大Size
-	HalfFactor      int64    // 当前增发率除一个2^f
+	r   *rand.Rand
+	day uint64
 
-	KeeperPledge     *big.Int           // Keeper需要质押的代币数
-	ProviderPledge   *big.Int           // Provider需要质押的代币数
-	KeeperCount      int64              // 系统中Keeper的数量
-	ProviderCount    int64              // 系统中Provider的数量
-	LastMint         int64              // 上一次Mint的时间，单位Day
-	SubSpacePriceMap map[int64]*big.Int // 记录过期价格，key为天数
-	SubSizeMap       map[int64]*big.Int // 记录过期空间，key为天数
+	cfg *Config
+
+	liquid       *big.Int // 总当前可流动代币数
+	unlockPerDay *big.Int
+
+	paid   *big.Int // pay for order
+	fs     *big.Int
+	pledge *big.Int
+
+	foundation *big.Int
+	kincome    *big.Int
+	pincome    *big.Int
+
+	mint        *MintInfo
+	spaceTime   *big.Int
+	spacePrice  *big.Int
+	accSize     *big.Int
+	size        *big.Int
+	reward      *big.Int // reward to pledge pool
+	profits     []*big.Int
+	subPriceMap map[uint64]*big.Int // 记录过期价格，key为天数
+	subSizeMap  map[uint64]*big.Int // 记录过期空间，key为天数
+
+	fixPledge     *big.Int
+	groups        uint64
+	gState        map[uint64]*GroupState
+	keeperCount   uint64 // 系统中Keeper的数量
+	providerCount uint64 // 系统中Provider的数量
+	pState        map[uint64]*NodeState
 }
 
-func NewMemoState(config *EconomicsConfig) *MemoState {
-	return &MemoState{
-		MintLevel:       0,
-		Ratio:           big.NewInt(0),
-		TotalSupply:     new(big.Int).Set(config.InitialSupply),
-		TotalLiquid:     new(big.Int).Set(config.InitialSupply),
-		TotalReward:     big.NewInt(0),
-		TotalPledge:     big.NewInt(0),
-		TotalSize:       big.NewInt(0),
-		TotalSpacePrice: big.NewInt(0),
-		TotalSpaceTime:  big.NewInt(0),
-		TotalPay:        big.NewInt(0),
-		TotalPaid:       big.NewInt(0),
-		TargetReward:    new(big.Int).Set(config.InitialTarget),
-		PeriodReward:    new(big.Int).Set(config.InitialTarget),
-		MaxSize:         big.NewInt(0),
-		HalfFactor:      0,
+func NewMemoState(cfg *Config) *MemoState {
+	upd := new(big.Int).Mul(big.NewInt(cfg.Token.LinearSupply), big.NewInt(Memo))
+	upd.Div(upd, big.NewInt(cfg.Token.LinearDay))
+	s := &MemoState{
+		r:            rand.New(rand.NewSource(time.Now().UnixNano())),
+		cfg:          cfg,
+		liquid:       new(big.Int).Mul(big.NewInt(cfg.Token.InitSupply), big.NewInt(Memo)),
+		unlockPerDay: upd,
+		paid:         big.NewInt(0),
+		fs:           big.NewInt(0),
+		pledge:       big.NewInt(0),
+		fixPledge:    big.NewInt(0),
 
-		KeeperPledge:     new(big.Int).Set(config.InitialKeeperPledge),
-		ProviderPledge:   new(big.Int).Set(config.InitialProviderPledge),
-		KeeperCount:      0,
-		ProviderCount:    0,
-		LastMint:         0,
-		SubSpacePriceMap: make(map[int64]*big.Int),
-		SubSizeMap:       make(map[int64]*big.Int),
+		foundation: big.NewInt(0),
+		kincome:    big.NewInt(0),
+		pincome:    big.NewInt(0),
+
+		mint:        InitMint(cfg.Mint),
+		spaceTime:   big.NewInt(0),
+		spacePrice:  big.NewInt(0),
+		accSize:     big.NewInt(0), // acc size
+		size:        big.NewInt(0), // current size
+		reward:      big.NewInt(0),
+		subPriceMap: make(map[uint64]*big.Int),
+		subSizeMap:  make(map[uint64]*big.Int),
+
+		profits: make([]*big.Int, cfg.Simu.Duration),
+
+		keeperCount:   0,
+		providerCount: 0,
+		gState:        make(map[uint64]*GroupState),
 	}
+
+	return s
 }
