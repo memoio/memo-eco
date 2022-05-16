@@ -19,6 +19,7 @@ type TokenConfig struct {
 type PledgeConfig struct {
 	InRatio  int64
 	OutRatio int64
+	DayBack  int64
 }
 
 type MintConfig struct {
@@ -30,6 +31,7 @@ type MintConfig struct {
 type RoleConfig struct {
 	KeeperPledge         int64
 	ProviderPledge       int64
+	GroupCount           uint64
 	KeeperCntPerGroup    uint64
 	ProviderCntPerGroup  uint64
 	ProviderStorage      int64
@@ -81,8 +83,9 @@ func DefaultConfig() *Config {
 			RatioAlter:   150,
 		},
 		Role: RoleConfig{
-			KeeperPledge:         1_000,   // Memo
-			ProviderPledge:       100,     // Memo
+			KeeperPledge:         1_000, // Memo
+			ProviderPledge:       100,   // Memo
+			GroupCount:           100,
 			KeeperCntPerGroup:    10,      // each group has 10 keeper
 			ProviderCntPerGroup:  5_000,   // assume each provider has 4TB, one group has 5000 provider
 			ProviderStorage:      8 * TiB, // provider storage
@@ -100,6 +103,7 @@ func DefaultConfig() *Config {
 		Pledge: PledgeConfig{
 			InRatio:  100, // annual rate > InRatio, pledge more
 			OutRatio: 25,  // annual rate < OutRatio, withdraw
+			DayBack:  7,
 		},
 	}
 }

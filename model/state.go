@@ -53,7 +53,6 @@ type MemoState struct {
 	gState        map[uint64]*GroupState
 	keeperCount   uint64 // 系统中Keeper的数量
 	providerCount uint64 // 系统中Provider的数量
-	pState        map[uint64]*NodeState
 }
 
 func NewMemoState(cfg *Config) *MemoState {
