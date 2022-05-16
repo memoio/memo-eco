@@ -22,19 +22,27 @@ const (
 )
 
 func (s *MemoState) updateGroup() {
-	// current group has exceed 70%; create a new group
-	// provider average storage > 80% of proivderStorage
+	// create a new group when:
+	// 1. is first group
+	// 2. provider count of current group has exceed 70%;
+	// 3. provider average storage > 80% of proivderStorage
+
+	stop := false
+	if s.groups >= s.cfg.Role.GroupCount {
+		// not add group
+		stop = true
+	}
+
 	create := false
 	ts := new(big.Int).Mul(big.NewInt(s.cfg.Role.ProviderStorage), big.NewInt(int64(s.providerCount)))
 	ts.Mul(ts, big.NewInt(4))
 	ts.Div(ts, big.NewInt(5))
-
 	if s.size.Cmp(ts) > 0 {
 		create = true
 	}
 
 	gs, ok := s.gState[s.groups]
-	if s.groups == 0 || create || (ok && gs.PCnt >= s.cfg.Role.ProviderCntPerGroup*70/100) {
+	if !stop && (s.groups == 0 || create || (ok && gs.PCnt >= s.cfg.Role.ProviderCntPerGroup*70/100)) {
 		s.groups++
 
 		knt := s.cfg.Role.KeeperCntPerGroup
@@ -55,7 +63,7 @@ func (s *MemoState) updateGroup() {
 		s.liquid.Sub(s.liquid, kp)
 	}
 
-	// 50-150
+	// create provider
 	for i := uint64(1); i <= s.groups; i++ {
 		gs, ok := s.gState[i]
 		if ok && gs.PCnt < s.cfg.Role.ProviderCntPerGroup {
@@ -85,7 +93,6 @@ func (s *MemoState) updateOrder() {
 		}
 
 		for i := uint64(0); i < gs.PCnt; i++ {
-
 			durDay := uint64(MinDuration + s.r.Int63n(2*int64(s.cfg.Order.DefaultDuration)-MinDuration))
 			size := big.NewInt(s.cfg.Order.DefaultSize/10 + s.r.Int63n(10*s.cfg.Order.DefaultSize-s.cfg.Order.DefaultSize/10))
 			price := int64(s.cfg.Order.DefaultPrice)
@@ -169,8 +176,9 @@ func (s *MemoState) updateReward() {
 	s.profits[s.day] = new(big.Int).Set(reward)
 }
 
+// update income for providers and keepers
 func (s *MemoState) updateIncome() {
-	// update income for provider and keeper
+	// linear pay
 	income := new(big.Int).Mul(s.spacePrice, big.NewInt(Day))
 	s.pincome.Add(s.pincome, income)
 	s.fs.Sub(s.fs, income)
@@ -186,6 +194,7 @@ func (s *MemoState) updateIncome() {
 
 	sp, ok := s.subPriceMap[s.day]
 	if ok {
+		// endpay
 		s.spacePrice.Sub(s.spacePrice, sp)
 		income.Mul(sp, big.NewInt(Day))
 		income.Mul(income, big.NewInt(s.cfg.Order.EndRate))
@@ -204,20 +213,19 @@ func (s *MemoState) updateIncome() {
 	}
 }
 
-// depend on profit
+// update pledge amount depend on profit
 func (s *MemoState) updatePledge() {
 	if s.pledge.BitLen() == 0 {
 		return
 	}
 
 	profit := new(big.Int)
-	pt := new(big.Int).Set(s.pledge)
 
 	cnt := int64(0)
 	for i := s.day; i > 0; i-- {
 		profit.Add(profit, s.profits[i])
 		cnt++
-		if cnt >= 30 {
+		if cnt >= s.cfg.Pledge.DayBack {
 			break
 		}
 	}
@@ -230,61 +238,43 @@ func (s *MemoState) updatePledge() {
 	profit.Mul(profit, big.NewInt(36500))
 
 	// profit > 1% per day, pledge more
-	if new(big.Int).Div(profit, pt).Cmp(big.NewInt(s.cfg.Pledge.InRatio)) > 0 {
-		for {
-			pt.Mul(pt, big.NewInt(101))
-			pt.Div(pt, big.NewInt(100))
-			if new(big.Int).Div(profit, pt).Cmp(big.NewInt(s.cfg.Pledge.InRatio)) < 0 {
-				if pt.Cmp(s.pledge) > 0 {
-					// pledge more
-					pt.Sub(pt, s.pledge)
-					s.pledge.Add(s.pledge, pt)
-					s.liquid.Sub(s.liquid, pt)
-					if s.cfg.Simu.Detail {
-						fmt.Println("pledge: ", WeiToMemo(pt))
-					}
-				}
-				break
-			}
+	if new(big.Int).Div(profit, s.pledge).Cmp(big.NewInt(s.cfg.Pledge.InRatio)) > 0 {
+		// pledge more
+		pt := new(big.Int).Div(s.pledge, big.NewInt(100))
+		s.pledge.Add(s.pledge, pt)
+		s.liquid.Sub(s.liquid, pt)
+		if s.cfg.Simu.Detail {
+			fmt.Println("pledge: ", WeiToMemo(pt))
 		}
 
 		return
 	}
 
 	// profit < 0.25%, withdraw
-	if new(big.Int).Div(profit, pt).Cmp(big.NewInt(s.cfg.Pledge.OutRatio)) < 0 {
-		for {
-			pt.Mul(pt, big.NewInt(99))
-			pt.Div(pt, big.NewInt(100))
-			if pt.BitLen() == 0 {
-				return
-			}
-			if new(big.Int).Div(profit, pt).Cmp(big.NewInt(s.cfg.Pledge.OutRatio)) > 0 {
-				if pt.Cmp(s.pledge) < 0 {
-					// withdraw
-					if pt.Cmp(s.fixPledge) < 0 {
-						pt.Set(s.fixPledge)
-					}
+	if new(big.Int).Div(profit, s.pledge).Cmp(big.NewInt(s.cfg.Pledge.OutRatio)) < 0 {
 
-					pt.Sub(s.pledge, pt)
+		pt := new(big.Int).Div(s.pledge, big.NewInt(100))
 
-					if pt.BitLen() == 0 {
-						return
-					}
+		lt := new(big.Int).Sub(s.pledge, s.fixPledge)
 
-					s.liquid.Add(s.liquid, pt)
-					s.pledge.Sub(s.pledge, pt)
-					if s.cfg.Simu.Detail {
-						fmt.Println("withdraw: ", WeiToMemo(pt))
-					}
-				}
+		// withdraw
+		if pt.Cmp(lt) > 0 {
+			pt.Set(lt)
+		}
 
-				break
-			}
+		if pt.BitLen() == 0 {
+			return
+		}
+
+		s.liquid.Add(s.liquid, pt)
+		s.pledge.Sub(s.pledge, pt)
+		if s.cfg.Simu.Detail {
+			fmt.Println("withdraw: ", WeiToMemo(pt))
 		}
 	}
 }
 
+// check mint level
 func (s *MemoState) checkMint() {
 	dur := new(big.Int).Div(s.spaceTime, s.accSize) // average duration
 	//nsize := new(big.Int).Div(s.spaceTime, big.NewInt(MinDuration*Day))
@@ -292,24 +282,27 @@ func (s *MemoState) checkMint() {
 	s.mint.Check(nsize, dur)
 }
 
+// unlock memo
 func (s *MemoState) updateLiquid() {
+	// linear unlock
 	if s.day < uint64(s.cfg.Token.LinearDay) {
 		s.liquid.Add(s.liquid, s.unlockPerDay)
 	}
 
+	// unlock at some day
 	if s.day == uint64(s.cfg.Token.LockDay) {
 		uv := new(big.Int).Mul(big.NewInt(s.cfg.Token.LockSupply), big.NewInt(Memo))
 		s.liquid.Add(s.liquid, uv)
 	}
 }
 
+// plot
 var PlotX []string
 var PlotData [][]opts.LineData
 
-// 生成每天的模拟数据
 func Simulate(cfg *Config) {
 	ss := time.Now()
-	fmt.Println("============ simulate start ============")
+
 	s := NewMemoState(cfg)
 
 	PlotX = make([]string, cfg.Simu.Duration)
@@ -340,7 +333,7 @@ func Simulate(cfg *Config) {
 		for i := s.day; i > 0; i-- {
 			profit.Add(profit, s.profits[i])
 			cnt++
-			if cnt >= 30 {
+			if cnt >= s.cfg.Pledge.DayBack {
 				break
 			}
 		}
@@ -353,24 +346,23 @@ func Simulate(cfg *Config) {
 		profit.Mul(profit, big.NewInt(36500))
 		profit.Div(profit, s.pledge)
 
-		nt.Day()
-
 		if s.cfg.Simu.Detail {
 			fmt.Println(s.day, s.groups, s.providerCount, ",liquid:", WeiToMemo(s.liquid), ",pledge:", WeiToMemo(s.pledge), ",reward:", WeiToMemo(s.reward), ",yearly: ", profit, ",paid:", WeiToMemo(s.paid), ",fs:", WeiToMemo(s.fs), ",income:", WeiToMemo(s.pincome), ",kincome:", WeiToMemo(s.kincome), ",size:", new(big.Int).Div(s.size, big.NewInt(TiB)), new(big.Int).Div(s.accSize, big.NewInt(TiB)), time.Since(nt))
 		}
 
 		PlotX[i] = strconv.Itoa(int(i))
 
+		liquid := new(big.Int).Add(s.liquid, s.pincome)
+		liquid.Add(liquid, s.kincome)
+
 		PlotData[SUPPLY_INDEX][i].Value = s.cfg.Token.TotalSupply
-		PlotData[LIQUID_INDEX][i].Value = int(WeiToMemo(s.liquid).Int64())
+		PlotData[LIQUID_INDEX][i].Value = int(WeiToMemo(liquid).Int64())
 		PlotData[REWARD_INDEX][i].Value = int(WeiToMemo(s.reward).Int64())
 		PlotData[PLEDGE_INDEX][i].Value = WeiToMemo(s.pledge).Uint64()
 		PlotData[PAID_INDEX][i].Value = WeiToMemo(s.paid).Uint64()
 		PlotData[SIZE_INDEX][i].Value = new(big.Int).Div(s.size, big.NewInt(TiB)).Int64()
 		PlotData[ASIZE_INDEX][i].Value = new(big.Int).Div(s.accSize, big.NewInt(TiB)).Int64()
 	}
-
-	fmt.Println("============ simulate end ============")
 
 	fmt.Println("simulate cost:", time.Since(ss))
 

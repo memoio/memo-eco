@@ -61,7 +61,9 @@ func main() {
 		}
 	}
 
+	fmt.Println("============ simulate start ============")
 	model.Simulate(cfg)
+	fmt.Println("============= simulate end =============")
 
 	plotToken(outputDir)
 	plotSize(outputDir)
@@ -102,7 +104,7 @@ func plotToken(outputDir string) {
 	)
 
 	line.SetXAxis(model.PlotX).
-		AddSeries("Supply", model.PlotData[model.SUPPLY_INDEX]).
+		//AddSeries("Supply", model.PlotData[model.SUPPLY_INDEX]).
 		AddSeries("Liquid", model.PlotData[model.LIQUID_INDEX]).
 		AddSeries("Reward", model.PlotData[model.REWARD_INDEX]).
 		AddSeries("Pledge", model.PlotData[model.PLEDGE_INDEX]).
