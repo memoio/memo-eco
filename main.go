@@ -73,7 +73,7 @@ func main() {
 	plotToken(outputDir)
 	plotSize(outputDir)
 
-	end := "0.0.0.0:18081"
+	end := "0.0.0.0:10888"
 	fmt.Println("visit: ", end)
 	fs := http.FileServer(http.Dir(outputDir))
 	http.ListenAndServe(end, logRequest(fs))
