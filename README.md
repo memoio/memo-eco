@@ -187,8 +187,8 @@ type MintConfig struct {
 }
 
 type PledgeConfig struct {
-	InRatio  int64   // 30日年化收益超过此值，质押会增加， 默认100%
-	OutRatio int64   // 30日年化收益小于此值，质押会减少， 默认25%
+	InRatio  int64   // x日年化收益超过此值，质押会增加， 默认100%
+	OutRatio int64   // x日年化收益小于此值，质押会减少， 默认25%
 }
 
 type RoleConfig struct {
@@ -214,4 +214,15 @@ type SimuConfig struct {
 	Duration uint64  // 模拟时间长度，默认1000天
 	Detail   bool    // 是否打印中间信息
 }
+```
+
+## compile and run
+
+```
+## compile
+> go build
+## config is stored in ~/.simu/config.toml; see result by opening localhost:10888 in web browser
+> ./memo-eco 
+## modify config params, run again
+> ./memo-eco --config=~/.simu/config.toml
 ```

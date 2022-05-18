@@ -55,7 +55,12 @@ func main() {
 		}
 	} else {
 		fmt.Println("load config from: ", cp)
-		_, err := toml.DecodeFile(cp, cfg)
+		ncp, err := homedir.Expand(cp)
+		if err != nil {
+			return
+		}
+
+		_, err = toml.DecodeFile(ncp, cfg)
 		if err != nil {
 			return
 		}
