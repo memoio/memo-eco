@@ -1,218 +1,221 @@
-# Memo经济模型简版
+# Memo Economic Model Simplified Edition
 
 [TOC]
 
-# 1. Memo协议介绍
+# 1. Introduction to Memo Protocol
 
-Memo协议是一个基于区块链技术的分散式存储基础设施。Memo结合了分层架构、高效的存储证明以及智能合约结算，从而构建了一个可靠、低成本且可扩展的存储服务。Memo致力于服务需要可靠数据存储的项目以及开发者，使他们可以简单地将存储基础替换为基于区块链的存储，让产品进一步去中心化。
+The Memo Protocol is a decentralized storage infrastructure based on blockchain technology. Memo combines a layered architecture, efficient storage proofs, and smart contract settlement to build a reliable, low-cost, and scalable storage service. Memo is committed to serving projects and developers who need reliable data storage, allowing them to simply replace the storage foundation with blockchain-based storage to further decentralize the product.
 
-从架构上看，Memo可以分成三个层次，分别为结算层、验证层以及存储层。
+From an architectural point of view, Memo can be divided into three levels: settlement layer, verification layer, and storage layer.
 
-结算层将聚合所有的订单信息，并且订单金额逐步发放给存储节点，并且代币奖励机制也实现在结算层之上，而这一切都由代码驱动。
+The settlement layer will aggregate all order information, and the order amount will be gradually distributed to the storage nodes, and the token reward mechanism is also implemented on the settlement layer, all of which is driven by code.
 
-验证层中的Keeper节点将挑战Provider节点，并验证证明结果，以决定是否给Provider节点取款凭证，验证层的所有流程都将经过验证层节点的拜占庭容错共识。
+The Keeper node in the verification layer will challenge the Provider node and verify the proof result to decide whether to give the Provider node a withdrawal certificate. All processes in the verification layer will go through the Byzantine fault-tolerant consensus of the verification layer nodes.
 
-存储层的分散Provider节点存储真实的数据，并定期向验证层提交存储证明，同时使用取款凭证在结算层获取一个阶段的存储收益。
+The decentralized Provider nodes in the storage layer store real data and regularly submit storage proofs to the verification layer, while using withdrawal certificates to obtain storage income for a stage in the settlement layer.
 
-# 2. 基本设计
+# 2. Basic Design
 
-## 2.1 代币定义
+## 2.1 Token Definition
 
-Memo是Memo协议使用的代币，用于驱动整个Memo存储协议的运转以及规模增长。
+Memo is the token used by the Memo protocol, which is used to drive the operation and scale growth of the entire Memo storage protocol.
 
-在Memo协议中，Keeper和Provider需要首先质押Memo以获得赚取收益的资格，同时用户需要支付Memo代币以存储、检索数据，为了激励数据存储，根据订单的增长，Memo会奖励分配给Keeper、Provider以及长期持币者。
+In the Memo protocol, Keepers and Providers need to first stake Memo to qualify for earning income. At the same time, users need to pay Memo tokens to store and retrieve data. In order to incentivize data storage, Memo will reward Keepers, Providers and long-term holders according to the growth of orders.
 
-Memo不仅是协议的使用代币，也是协议的权益代币，持有Memo的持币者将可以从Memo生态的增长中获益，同时参与Memo的治理。
+Memo is not only the usage token of the protocol, but also the equity token of the protocol. Holders of Memo will benefit from the growth of the Memo ecosystem and participate in the governance of Memo.
 
-## 2.2 设计原则
+## 2.2 Design Principles
 
-Memo代币旨在给用户以及生态参与方创造价值，提高生产力，并持续激励生态增长。Memo的经济模型将按照以下原则设计：
+The Memo token is designed to create value for users and ecosystem participants, improve productivity, and continuously incentivize ecosystem growth. The economic model of Memo will be designed according to the following principles:
 
-+ 参与方获得的激励应与其付出的成本成正比，并尽量保持公平。
-+ 经济模型逻辑应尽量由代码控制，减少人为调控的部分。
-+ 经济模型应鼓励参与方实施对协议有利的行为，满足激励相容。
++ The incentives obtained by participants should be proportional to the costs they pay and try to keep it fair.
 
-## 2.3 代币分配
++ The logic of the economic model should be controlled by code as much as possible to reduce the part of human regulation.
++ The economic model should encourage participants to implement behaviors that are beneficial to the protocol and meet incentive compatibility.
 
-### 2.3.1 Memo经济循环
+## 2.3 Token Distribution
 
-代币将在用户、开发者、Keeper以及存储节点之间循环流动，首先，用户需要购买Memo才能使用Memo的存储服务，Keeper和Provider需要先购买Memo质押才可以提供服务获取收益，而Memo的存储付费又会流动到Keeper和Provider中，同时，Keeper、Provider以及长期持币人也可以在质押池内质押Memo，从而获得Memo生态增长的激励奖励。
+### 2.3.1 Memo Economic Cycle
 
-由此，Memo的产生是一个消费再生产的循环，并将在此过程中逐步扩大存储规模，而规模的扩大，又会提高Memo的价值。
+Tokens will circulate between users, developers, Keepers, and storage nodes. First, users need to purchase Memo to use Memo's storage services. Keepers and Providers need to purchase Memo pledges before they can provide services to obtain income, and Memo storage fees will flow to Keepers and Providers. At the same time, Keepers, Providers, and long-term coin holders can also pledge Memo in the pledge pool to obtain incentives for the growth of the Memo ecosystem.
 
-### 2.3.2 Memo使用场景
+Therefore, the generation of Memo is a cycle of consumption and reproduction, and the storage scale will be gradually expanded in the process. The expansion of scale will increase the value of Memo.
 
-+ Keeper和Provider首先需要在质押池内deposit一定数量的Memo才可以参与协议提供服务。
-+ 用户或者开发者需要购买Memo，并将其转移至订单池内，才可以签订订单使用Memo的存储服务，同时，检索数据也需要付出一定量的Memo。
-+ 由于Memo同时还代表着对整个协议的权益，所以Memo的持有人可以将Memo质押到质押池，获取奖励收益，同时，未来可能会设计治理机制，使用Memo代币可以参与到协议的治理过程。
+### 2.3.2 Memo Usage Scenarios
 
-### 2.3.3 代币创世发行分配
++ Keepers and Providers first need to deposit a certain amount of Memo in the pledge pool before they can participate in the protocol to provide services.
++ Users or developers need to purchase Memo and transfer it to the order pool before they can sign an order to use Memo's storage service. At the same time, a certain amount of Memo is required to retrieve data.
++ Since Memo also represents the rights and interests of the entire protocol, Memo holders can pledge Memo to the pledge pool to obtain reward income. At the same time, a governance mechanism may be designed in the future, and the use of Memo tokens can participate in the governance process of the protocol.
 
-代币分配分为创世分配与激励奖励分配，创世代币分配份额由以下组成：
+### 2.3.3 Token Genesis Distribution
 
-+ 投资人: 29%，将在四百天内，每天线性解锁。
-+ 核心团队: 27%，由核心团队控制，一半立刻释放，另一半在400天内线性解锁。
-+ 合作伙伴及顾问: 14%，一部分将锁定在订单池，其他部分线性解锁。
-+ 生态基金: 29%，暂时锁定，留待以后通过治理提取使用。
+Token distribution is divided into Genesis distribution and Incentive Reward Distribution. The Genesis Token Distribution Share is composed of the following:
 
-## 2.4 奖励模型概述
++ Investors: 29%, which will be unlocked linearly every day within 400 days.
++ Core Team: 27%, controlled by the core team, half will be released immediately, and the other half will be unlocked linearly within 400 days.
++ Partners and Consultants: 14%, part of which will be locked in the order pool, and the rest will be unlocked linearly.
++ Ecological Fund: 29%, temporarily locked, to be extracted and used through governance in the future.
 
-在初始代币发行结束后，需要设计机制激励生态发展，尽快激励存储节点提供存储空间，同时激励用户存储数据。
+## 2.4 Overview of the Reward Model
 
-首先，维护者（Keeper）和存储节点（Provider）需要质押Memo代币才能开始提供服务，而且任何持币人都可以在质押池质押Memo以获得奖励收益。
+After the initial token issuance, a mechanism needs to be designed to stimulate ecological development, incentivize storage nodes to provide storage space as soon as possible, and incentivize users to store data.
 
-除质押池外，订单池记录了每个存储节点和维护节点的订单金额，在每次用户与存储节点签订订单时，用户需要提前将代币金额转移到订单池中Provider以及Keeper节点的账户，但是节点不能立刻提取资金，只能在存储周期内按时上传存储证明，慢慢取走订单池内的资金。
+First, maintainers (Keepers) and storage nodes (Providers) need to stake Memo tokens to start providing services, and any coin holder can stake Memo in the staking pool to obtain reward income.
 
-发送给存储节点订单池的金额，在整个存储周期由存储节点逐步领取；发送给Keeper的，一部分随着存储节点领取收益而逐步发送给Keeper，另一部分在订单到期时，直接发送给Keeper。
+In addition to the staking pool, the order pool records the order amount of each storage node and maintenance node. Every time a user signs an order with a storage node, the user needs to transfer the token amount to the account of the Provider and Keeper nodes in the order pool in advance, but the node cannot withdraw funds immediately. It can only upload storage proofs on time during the storage period and slowly take away the funds in the order pool.
 
-此外在签订订单的时候，会根据订单信息以及参数计算一个奖励量，然后将奖励的代币发送给质押池，由所有在质押池内质押代币的账户按照份额平等分配奖励。
+The amount sent to the storage node order pool is gradually collected by the storage node throughout the storage period; the amount sent to the Keeper is gradually sent to the Keeper as the storage node collects income, and the other part is sent directly to the Keeper when the order expires.
 
-由上可知，Memo的代币奖励将和Memo协议的使用情况绑定，当Memo协议规模扩大，才会奖励更多的Memo以满足需求。Memo的奖励将会在触发目标奖励值后减半，所以早期的生态参与方可以获得更多红利。
+In addition, when signing an order, a reward amount will be calculated based on the order information and parameters, and then the rewarded tokens will be sent to the pledge pool, and all accounts that pledge tokens in the pledge pool will share the rewards equally according to their shares.
 
-### 2.4.1 质押机制
+As can be seen from the above, Memo's token rewards will be tied to the usage of the Memo protocol. When the scale of the Memo protocol expands, more Memo will be rewarded to meet the demand. Memo's rewards will be halved after the target reward value is triggered, so early ecological participants can get more dividends.
 
-Keeper和Provider在提供服务前都需要质押，质押最低限度的主代币`KeeperPledge`以及`ProviderPledge`，此外，任何持有主代币的用户都可以把自己的代币质押到质押池，以获得代币奖励奖励。
+### 2.4.1 Staking Mechanism
 
-### 2.4.2 质押池分润机制
+Keeper and Provider need to pledge before providing services, staking the minimum main tokens `KeeperPledge` and `ProviderPledge`. In addition, any user holding the main token can pledge their own tokens to the pledge pool to obtain token rewards.
 
-质押池为以主代币Memo为质押代币的资金池，假设在T时刻，有个人$k_1$往质押池内质押主代币Memo $x_1$个，得到$x_1$个mMemo，此时池内Memo数量$\Zeta_{Memo}= x_1$，mMemo的数量$\Zeta_{mMemo}=x_1$。
+### 2.4.2 Profit sharing mechanism of pledge pool
 
-在后续的系统运行中，假设系统得到了$\Delta_x$个Memo的奖励，则$\Zeta_{Memo1}= x_1+\Delta_x, \Zeta_{mMemo1}=x_1$，则此时$x_1$个mMemo可以兑换回$(x_1+\Delta_x)$个Memo，即每个mMemo值$\frac{x_1+\Delta_x}{x_1}$个Memo。
+The pledge pool is a fund pool with the main token Memo as the pledge token. Assume that at time T, a person $k_1$ pledges $x_1$ of the main token Memo in the pledge pool and obtains $x_1$ mMemo. At this time, the number of Memos in the pool is $\Zeta_{Memo}= x_1$, and the number of mMemos is $\Zeta_{mMemo}=x_1$.
 
-若在B时刻，另外一人$k_2$质押了$x_2$个Memo，则此时它将获得$\frac{\Zeta_{mMemo1}}{\Zeta_{Memo1}}x_2=\frac{x_1x_2}{x_1+\Delta_x}$个mMemo，此时$\Zeta_{Memo2}=x_1+x_2+\Delta_x,\Zeta_{mMemo2}=x_1+\frac{x_2x_1}{x_1+\Delta_x}$
+In the subsequent system operation, assuming that the system receives $\Delta_x$ Memo rewards, then $\Zeta_{Memo1}= x_1+\Delta_x, \Zeta_{mMemo1}=x_1$, then $x_1$ mMemo can be exchanged for $(x_1+\Delta_x)$ Memos, that is, each mMemo is worth $\frac{x_1+\Delta_x}{x_1}$ Memos.
 
-若此时没有奖励，则此时$k_1$可以兑换回的代币数量为$x_1 \cdot \frac{x_1+x_2+\Delta_x}{x_1+\frac{x_2x_1}{x_1+\Delta_x}}=x_1+\Delta_x$，$k_2$可以兑回的数量为$\frac{x_1x_2}{x_1+\Delta_x}\cdot\frac{x_1+x_2+\Delta_x}{x_1+\frac{x_2x_1}{x_1+\Delta_x}}=x_2$个，与其贡献等同，而一旦有新的奖励打入池子，改变了$\Zeta_{Memo1}$，那么$k_2$将兑换得比$x_2$更多的Memo。
+If at time B, another person $k_2$ pledges $x_2$ Memos, then it will receive $\frac{\Zeta_{mMemo1}}{\Zeta_{Memo1}}x_2=\frac{x_1x_2}{x_1+\Delta_x}$ mMemos, and $\Zeta_{Memo2}=x_1+x_2+\Delta_x,\Zeta_{mMemo2}=x_1+\frac{x_2x_1}{x_1+\Delta_x}$
 
-后面的新增质押以及奖励分配与上面类似。
+If there is no reward at this time, the number of tokens that $k_1$ can redeem is $x_1 \cdot \frac{x_1+x_2+\Delta_x}{x_1+\frac{x_2x_1}{x_1+\Delta_x}}=x_1+\Delta_x$, the amount that $k_2$ can redeem is $\frac{x_1x_2}{x_1+\Delta_x}\cdot\frac{x_1+x_2+\Delta_x}{x_1+\frac{x_2x_1}{x_1+\Delta_x}}=x_2$, which is equal to its contribution. Once new rewards are added to the pool and $\Zeta_{Memo1}$ is changed, $k_2$ will be redeemed for more Memo than $x_2$.
 
-### 2.4.3 质押池奖励机制
+The subsequent new pledges and reward distribution are similar to the above.
 
-奖励分配，包括长期的生态激励以及奖励奖励，以激励维护者、存储节点、用户以及代币持有者为生态做贡献，这部分分配会随着订单量的增长逐步释放。
+### 2.4.3 Staking Pool Reward Mechanism
 
-奖励分配的上限为创世发行的一半。
+Reward distribution, including long-term ecological incentives and reward rewards, to encourage maintainers, storage nodes, users and token holders to contribute to the ecosystem. This part of the distribution will be gradually released as the order volume grows.
 
-奖励与存储量挂钩，并设定一些奖励目标，在每次触发订单时，会根据当前的存储状态以及订单数据，设定一个奖励量，发放到质押池，并由所有的质押者根据质押量分配。
+The upper limit of reward distribution is half of the Genesis issuance.
 
+The reward is linked to the storage volume, and some reward targets are set. Every time an order is triggered, a reward amount will be set according to the current storage status and order data, and issued to the pledge pool, and all pledgers will be allocated according to the pledge amount.
 
-# 3. 生态构成
+# 3. Ecological composition
 
-## 3.1 基金会
+## 3.1 Foundation
 
-Memo基金会主要用于生态系统建设、市场推广和社区维护等工作，同时付出部分资金用于投资促进生态发展，并保持基金会的长期可持续运行。
+The Memo Foundation is mainly used for ecosystem construction, marketing and community maintenance, and at the same time, part of the funds are used for investment to promote ecological development and maintain the long-term sustainable operation of the foundation.
 
-基金会Memo协议负有以下责任：
+The Foundation Memo Protocol has the following responsibilities:
 
-+ 组织开发团队或者外包任务以完成Memo协议的实现以及迭代升级。
-+ 支持以及资助基于Memo开发的生态应用。
-+ 长期参与Memo的社区运营，并持续贡献。
++ Organize development teams or outsource tasks to complete the implementation and iterative upgrade of the Memo protocol.
 
-Memo基金会有权发起关于系统治理的提案，然后由社区决定该提案是否最终实施。基金会可以发起并包括但不限于以下建议:
++ Support and fund ecological applications developed based on Memo.
++ Long-term participation in Memo's community operations and continuous contributions.
 
-+ 修改系统的经济参数
-+ 提议对技术方案进行升级。
-+ 惩罚作恶或不作为的Keeper节点。
-+ 惩罚作恶或不作为的Provider节点。
+The Memo Foundation has the right to initiate proposals on system governance, and then the community decides whether the proposal will be finally implemented. The Foundation can initiate and include but are not limited to the following suggestions:
 
-## 3.2 社区生态
++ Modify the economic parameters of the system
++ Propose to upgrade the technical solution.
++ Punish Keeper nodes that do evil or do nothing.
++ Punish Provider nodes that do evil or do nothing.
 
-作为一个结合区块链的分散式去中心化存储方案，Memo协议的开发与发展离不开社区的支持。Memo基金会将积极组织和建立具有不同功能的社区，包括生态治理、开发者社区和持币人社区等，从而在多方面促进协议和生态健康稳定地发展。
+## 3.2 Community Ecology
+
+As a decentralized storage solution combined with blockchain, the development and development of the Memo protocol cannot be separated from the support of the community. The Memo Foundation will actively organize and establish communities with different functions, including ecological governance, developer communities, and coin holder communities, so as to promote the healthy and stable development of the protocol and ecology in many aspects.
 
 ## 3.3 Keeper
 
-节点首先质押足额的保证金，然后才能在协议内成为Keeper节点。
-作为Keeper节点，必须履行以下义务:
+The node must first pledge a sufficient margin before it can become a Keeper node within the protocol.
+As a Keeper node, the following obligations must be fulfilled:
 
-+ 股份不得少于规定金额的保证金。
++ The shares must not be less than the specified amount of margin.
 
-+ 保证长期在线活动，并维护验证层的历史数据。
++ Ensure long-term online activities and maintain historical data of the verification layer.
 
-+ 检查Provider的存储证明，并通过拜占庭容错共识给Provider签发取款单。
++ Check the storage proof of the Provider and issue a withdrawal order to the Provider through the Byzantine Fault Tolerance consensus.
 
-+ 在Provider丢失数据时，调度数据修复流程。
++ When the Provider loses data, schedule the data repair process.
 
-同时，Keeper节点具有以下权益：
+At the same time, the Keeper node has the following rights and interests:
 
-+ 从自己管理的订单内抽取一定比例作为收益。
++ Extract a certain proportion of the orders it manages as income.
 
-+ 质押的保证金将获取协议的奖励奖励。
++ The pledged margin will obtain the reward of the protocol.
 
-如果Keeper节点作恶或者不作为，则可能会遭受惩罚，即丢失保证金，并且不能再继续提供服务获取收益。
+If the Keeper node does evil or does nothing, it may be punished, that is, lose the margin, and can no longer continue to provide services to obtain income.
 
 ## 3.4 Provider
 
-拥有空闲存储空间的节点可以成为Provider，首先质押足额的保证金，然后可以与用户签订订单获取收益。
-作为Provider，需要履行以下义务:
+Nodes with free storage space can become Providers. First, pledge a sufficient amount of margin, and then sign orders with users to obtain income.
 
-+ 在质押池质押足额的保证金。
+As a Provider, you need to fulfill the following obligations:
 
-+ 按照订单规定的标准存储数据，并保证数据的可靠性和可用性。
++ Pledge a sufficient amount of margin in the pledge pool.
 
-+ 按时向验证层提交存储证明。
++ Store data according to the standards specified in the order, and ensure the reliability and availability of the data.
 
-同时，Provider具有以下权益
++ Submit storage proof to the verification layer on time.
 
-+ 逐步领取用户的订单付费。
-+ 从质押池中获取奖励收益。
+At the same time, the Provider has the following rights and interests
 
-如果Provider不履行义务，如丢失数据，不按时提交存储证明，则会遭受惩罚，扣除保证金以及转让订单。
++ Gradually collect user order payments.
 
-## 3.5 开发者
++ Obtain reward income from the staking pool.
 
-开发者可以在自己的项目中使用Memo协议，更多的项目采用Memo的存储服务，会给Memo带来更多的用户和存储需求。
+If the Provider fails to fulfill its obligations, such as losing data or failing to submit storage proofs on time, it will be punished, with deposits deducted and orders transferred.
 
-基金会可以通过一些开发者活动筛选对Memo协议有价值的开发者，并给予代币激励，并提供孵化服务。
-开发人员需履行以下义务:
+## 3.5 Developers
 
-# 3. 经济模型仿真
+Developers can use the Memo protocol in their own projects. More projects adopt Memo's storage services, which will bring more users and storage needs to Memo.
 
-## 3.1 参数选取
+The Foundation can screen developers who are valuable to the Memo protocol through some developer activities, give token incentives, and provide incubation services.
+Developers need to fulfill the following obligations:
 
-首先选取一个经济模型配置，如下所示：
+# 3. Economic model simulation
+
+## 3.1 Parameter selection
+
+First, select an economic model configuration as follows:
 
 ```go
 type TokenConfig struct {
-	TotalSupply int64  // 创世代币数量，默认600_000_000 memo
-	InitSupply  int64  // 初始发行量, 默认100_000_000
-	LockSupply   int64 // 锁定量,默认100_000_000
-	LinearSupply int64 // 线性释放量，默认100_000_000
-	LockDay      int64 // 锁定释放时间，默认540天，即540天后才能使用
-	LinearDay    int64 // 线性释放周期，默认180天，每天释放1/180
+	TotalSupply int64 // Genesis token quantity, default 600_000_000 memo
+	InitSupply int64 // Initial issuance, default 100_000_000
+	LockSupply int64 // Locked quantity, default 100_000_000
+	LinearSupply int64 // Linear release quantity, default 100_000_000
+	LockDay int64 // Lock release time, default 540 days, that is, it can only be used after 540 days
+	LinearDay int64 // Linear release period, default 180 days, 1/180 released every day
 }
 
 type MintConfig struct {
-	RewardTarget       int64 // 奖励上限， 默认 600_000_000
-	RatioInit          int64 // 奖励比例， 默认 2
-	RatioDecimal       int64 
-	RatioAlter         int64 // 奖励比例调整参数， 默认150；
+	RewardTarget int64 // Reward cap, Default 600_000_000
+	RatioInit int64 // Reward ratio, default 2
+	RatioDecimal int64
+	RatioAlter int64 // Reward ratio adjustment parameter, default 150;
 }
 
 type PledgeConfig struct {
-	InRatio  int64   // x日年化收益超过此值，质押会增加， 默认100%
-	OutRatio int64   // x日年化收益小于此值，质押会减少， 默认25%
+	InRatio int64 // If the annualized return on x days exceeds this value, the pledge will increase, default 100%
+	OutRatio int64 // If the annualized return on x days is less than this value, the pledge will be reduced, default 25%
 }
 
 type RoleConfig struct {
-	KeeperPledge         int64 // keeper最小质押量， 默认1_000
-	ProviderPledge       int64 // provider最小质押量， 默认1_00
-	KeeperCntPerGroup    uint64 // 每个组keeper上限， 默认10
-	ProviderCntPerGroup  uint64 // 每个组provider上限， 默认5000
-	ProviderStorage      uint64 // provider存储上限，默认8TB，太小会导致模拟时间变长
-	ProviderCreatePerDay uint64 // 每天每组添加provider上限， 默认150, 模型中每天会增加150-200 
+	KeeperPledge int64 // Minimum pledge of keeper, default 1_000
+	ProviderPledge int64 // Minimum pledge of provider, default 1_00
+	KeeperCntPerGroup uint64 // Upper limit of keeper per group, default 10
+	ProviderCntPerGroup uint64 // Upper limit of provider per group, default 5000
+	ProviderStorage uint64 // Upper limit of provider storage, default 8TB, too small will cause simulation time to increase
+	ProviderCreatePerDay uint64 // Upper limit of provider added per group per day, default 150, 150-200 will be added per day in the model
 }
 
 type OrderConfig struct {
-	DefaultSize     int64  // 订单大小，默认8GB
-	DefaultDuration uint64 // 订单长度，默认365天，大于100天
-	DefaultPrice    uint64 // 订单每GB价格，默认1073741824
+	DefaultSize int64 // Order size, default 8GB
+	DefaultDuration uint64 // Order length, default 365 days, greater than 100 days
+	DefaultPrice uint64 // Price per GB of order, default is 1073741824
 
-	LinearRate int64 // 线性释放率， 默认4，即4%，支付给keeper
-	EndRate    int64 // 到期释放率， 默认1，即1%，订单到期时支付给keeper
-	TaxRate    int64 // 管理费，默认1，即1%
+	LinearRate int64 // Linear release rate, default is 4, i.e. 4%, paid to keeper
+	EndRate int64 // Expiration release rate, default is 1, i.e. 1%, paid to keeper when order expires
+	TaxRate int64 // Management fee, default is 1, i.e. 1%
 }
 
 type SimuConfig struct {
-	Duration uint64  // 模拟时间长度，默认1000天
-	Detail   bool    // 是否打印中间信息
+	Duration uint64 // Simulation time length, default is 1000 days
+	Detail bool // Whether to print intermediate information
 }
 ```
 
@@ -222,7 +225,7 @@ type SimuConfig struct {
 ## compile
 > go build
 ## config is stored in ~/.simu/config.toml; see result by opening localhost:10888 in web browser
-> ./memo-eco 
+> ./memo-eco
 ## modify config params, run again
 > ./memo-eco --config=~/.simu/config.toml
 ```
